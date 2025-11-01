@@ -8,9 +8,9 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGODB_INITDB_ROOT_USERNAME: admin
-      MONGODB_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
-      MONGODB_INITDB_DATABASE: data-scraping
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      MONGO_INITDB_DATABASE: data-scraping
     volumes:
       - mongodb_data_prod:/data/db
     networks:
@@ -27,13 +27,14 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8000
-      MONGODB_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-password123}@203.161.58.142:27017/data-scraping?authSource=admin
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      MONGODB_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-password123}@mongodb:27017/data-scraping?authSource=admin
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
     volumes:
       - ./ds-backend/uploads:/app/uploads
+    depends_on:
+      - mongodb
     networks:
       - ds-network-prod
 
