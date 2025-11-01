@@ -8,10 +8,11 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGODB_INITDB_ROOT_USERNAME: root
-      MONGODB_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      MONGO_INITDB_DATABASE: data-scraping
     volumes:
-      - ./data/mongodb:/data/db
+      - mongodb_data_prod:/data/db
     networks:
       - ds-network-prod
 
@@ -26,7 +27,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8000
-      MONGODB_URI: mongodb://root:example@mongodb:27017/data-scraping?authSource=admin
+      MONGODB_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-password123}@mongodb:27017/data-scraping?authSource=admin
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
