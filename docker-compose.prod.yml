@@ -27,7 +27,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8000
-      MONGODB_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-password123}@mongodb:27017/data-scraping?authSource=admin
+      MONGODB_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-password123}@203.161.58.142:27017/data-scraping?authSource=admin
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
