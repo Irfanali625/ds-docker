@@ -1,179 +1,212 @@
 # Data Scraping Application
 
-A full-stack data scraping and lead management system with B2B and B2C contact management.
+A full-stack application for managing contacts, leads, and phone validation with Docker support.
 
-## Project Structure
+## 🏗️ Architecture
 
-- `ds-backend/` - Node.js/TypeScript backend API
-- `ds-frontend/` - Next.js/TypeScript frontend application
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Docker Network                       │
+│                                                         │
+│  ┌────────────────┐           ┌────────────────┐      │
+│  │   Frontend     │──────────▶│    Backend     │      │
+│  │   (Next.js)    │   API     │   (Express)    │      │
+│  │   Port: 3000   │           │   Port: 8000   │      │
+│  └────────────────┘           └────────┬───────┘      │
+│                                        │              │
+│                                 ┌──────▼──────┐       │
+│                                 │  MongoDB    │       │
+│                                 │ Port: 27017 │       │
+│                                 └─────────────┘       │
+└─────────────────────────────────────────────────────────┘
+```
 
-## Features
+## 🚀 Quick Start with Docker
 
-### Contact Management
-- **B2B Leads**: Scraped from Google Maps (structure ready, integration needed)
-- **B2C Leads**: From provided list (with dummy data included)
-- **Four-Phase System**:
-  - `RAW` - Before validation
-  - `CLEANED` - After validation
-  - `DELIVERING` - When going to client
-  - `DELIVERED` - After reached client
-- **Automatic Reset**: Contacts in `DELIVERED` phase automatically move back to `CLEANED` after 3 months
+### Prerequisites
+- Docker Desktop installed and running
 
-### User Features
-- Select B2B or B2C lead types
-- Get random contacts from selected type
-- Store contact records per user
-- View stored records history
-- Beautiful, modern UI with Tailwind CSS
+### Run the Application
 
-## Getting Started
-
-### Backend Setup
-
-1. Navigate to backend directory:
 ```bash
-cd ds-backend
+# Clone and navigate to project
+cd "Data Scraping"
+
+# Start all services
+docker-compose up --build
+
+# Or run in background
+docker-compose up --build -d
 ```
 
-2. Install dependencies:
+### Access Points
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API Health**: http://localhost:8000/health
+
+### Stop Services
+
 ```bash
-npm install
+docker-compose down
 ```
 
-3. Make sure MongoDB is running locally or update the connection string.
+For complete Docker documentation, see [DOCKER.md](./DOCKER.md)
 
-4. Create `.env` file with MongoDB connection details:
+## 📁 Project Structure
 
-**For MongoDB without authentication (local development):**
 ```
-PORT=3001
-NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/data-scraping
-```
-
-**For MongoDB with authentication:**
-```
-PORT=3001
-NODE_ENV=development
-MONGODB_URI=mongodb://username:password@host:port/database?authSource=admin
-```
-
-**Or use individual components:**
-```
-MONGODB_USERNAME=your_username
-MONGODB_PASSWORD=your_password
-MONGODB_HOST=localhost
-MONGODB_PORT=27017
-MONGODB_DATABASE=data-scraping
-```
-
-5. Start the server:
-```bash
-npm run dev
-```
-
-The backend API will be available at `http://localhost:3001`
-
-### Frontend Setup
-
-1. Navigate to frontend directory:
-```bash
-cd ds-frontend
+Data Scraping/
+├── docker-compose.yml          # Main Docker orchestration
+├── QUICKSTART.md               # Quick start guide
+├── DOCKER.md                   # Comprehensive Docker docs
+├── DOCKER_SETUP_SUMMARY.md     # Setup summary
+├── .dockerignore               # Root Docker ignore
+│
+├── ds-backend/                 # Backend API
+│   ├── Dockerfile              # Backend Docker image
+│   ├── .dockerignore           # Backend ignore patterns
+│   ├── package.json
+│   └── src/
+│       ├── controllers/        # Request handlers
+│       ├── database/           # MongoDB connection
+│       ├── middleware/         # Auth, upload
+│       ├── models/             # Data models
+│       ├── repository/         # Data access layer
+│       ├── routes/             # API routes
+│       ├── services/           # Business logic
+│       └── index.ts            # Entry point
+│
+└── ds-frontend/                # Frontend App
+    ├── Dockerfile              # Frontend Docker image
+    ├── .dockerignore           # Frontend ignore patterns
+    ├── next.config.js          # Next.js config
+    ├── package.json
+    ├── app/                    # Next.js app directory
+    ├── components/             # React components
+    ├── contexts/               # React contexts
+    ├── lib/                    # Utilities
+    └── views/                  # Page views
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. (Optional) Create `.env.local` file:
-```
-NEXT_PUBLIC_API_URL=http://localhost:3001
-```
-
-4. Start the development server:
-```bash
-npm run dev
-```
-
-The frontend will be available at `http://localhost:3000`
-
-## API Endpoints
-
-### Contacts
-
-- `GET /api/contacts/random?type={B2B|B2C}&phase={RAW|CLEANED|DELIVERING|DELIVERED}` - Get random contact
-- `POST /api/contacts` - Create new contact
-- `GET /api/contacts?type={B2B|B2C}&phase={phase}&limit={limit}&offset={offset}` - Get contacts with filters
-- `PUT /api/contacts/:id/phase` - Update contact phase
-
-### Records
-
-- `POST /api/contacts/records` - Store user record
-  ```json
-  {
-    "userId": "user_123",
-    "contactId": "contact_456",
-    "phase": "DELIVERED"
-  }
-  ```
-- `GET /api/contacts/records/user/:userId` - Get all records for a user
-
-### Health Check
-
-- `GET /health` - Server health check
-
-## Database
-
-The application uses MongoDB with Mongoose ODM for data persistence. The database connection is configured via the `MONGODB_URI` environment variable (default: `mongodb://localhost:27017/data-scraping`).
-
-### Database Schema
-
-**contacts**
-- id (ObjectId), type (B2B/B2C), phase (RAW/CLEANED/DELIVERING/DELIVERED)
-- name, email, phone, company, address, city, state, zipCode, country, website
-- source, createdAt, updatedAt, deliveredAt
-
-**user_records**
-- id (ObjectId), userId, contactId (ObjectId reference), phase, deliveredAt, createdAt
-
-## Background Jobs
-
-A scheduled job runs daily at 2 AM to automatically move `DELIVERED` contacts back to `CLEANED` phase after 3 months.
-
-## Technologies
+## 🛠️ Technologies
 
 ### Backend
-- Node.js
-- TypeScript
-- Express.js
-- MongoDB with Mongoose ODM
-- node-cron (for scheduled jobs)
+- **Runtime**: Node.js 20
+- **Framework**: Express.js
+- **Language**: TypeScript
+- **Database**: MongoDB
+- **Authentication**: JWT
+- **File Upload**: Multer
+- **Validation**: Twilio (optional)
 
 ### Frontend
-- Next.js 14
-- TypeScript
-- React 18
-- Tailwind CSS
+- **Framework**: Next.js 14
+- **Language**: TypeScript
+- **UI**: React 18
+- **Styling**: Tailwind CSS
+- **Forms**: React Hook Form + Yup
+- **Icons**: Tabler Icons
 
-## Development
+### Infrastructure
+- **Containerization**: Docker
+- **Orchestration**: Docker Compose
+- **Database**: MongoDB 7.0
 
-### Backend Scripts
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run type-check` - Type check without building
+## ⚙️ Configuration
 
-### Frontend Scripts
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
+### Default MongoDB Credentials
+- Username: `admin`
+- Password: `password123`
+- Database: `data-scraping`
 
-## Next Steps
+⚠️ **Change these for production!**
 
-1. **B2B Google Maps Integration**: Implement actual Google Maps scraping for B2B leads
-2. **Contact Validation**: Add validation logic to move contacts from RAW to CLEANED
-3. **User Authentication**: Add user authentication if needed
-4. **Advanced Filtering**: Add more filtering options in the frontend
-5. **Export Functionality**: Allow users to export their records
+### Environment Variables
+
+The application uses environment variables configured in `docker-compose.yml`:
+
+**Backend:**
+- `MONGODB_URI` - Auto-configured
+- `JWT_SECRET` - JWT signing secret
+- `TWILIO_ACCOUNT_SID` - Optional
+- `TWILIO_AUTH_TOKEN` - Optional
+- `TWILIO_PHONE_NUMBER` - Optional
+
+**Frontend:**
+- `NEXT_PUBLIC_API_URL` - API endpoint
+
+## 📚 Documentation
+
+- **[QUICKSTART.md](./QUICKSTART.md)** - Quick setup guide
+- **[DOCKER.md](./DOCKER.md)** - Complete Docker documentation
+- **[DOCKER_SETUP_SUMMARY.md](./DOCKER_SETUP_SUMMARY.md)** - Setup overview
+
+## 🎯 Features
+
+- ✅ User authentication (JWT)
+- ✅ Contact management
+- ✅ Lead tracking system
+- ✅ Phone number validation
+- ✅ CSV file upload
+- ✅ Docker containerization
+- ✅ Health checks
+- ✅ Persistent data storage
+- ✅ Production-ready configuration
+
+## 🧪 Development
+
+For development without Docker, see [QUICKSTART.md](./QUICKSTART.md#manual-setup-without-docker)
+
+## 📝 API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Register user
+- `POST /api/auth/login` - Login user
+
+### Contacts
+- `GET /api/contacts` - Get contacts
+- `GET /api/contacts/random` - Get random contact
+- `POST /api/contacts/records` - Create user record
+- `GET /api/contacts/my-leads` - Get user leads
+
+### Phone Validation
+- `POST /api/phone-validation/single` - Validate single number
+- `POST /api/phone-validation/bulk` - Validate multiple numbers
+- `POST /api/phone-validation/csv` - Validate CSV file
+
+### Health
+- `GET /health` - Health check
+
+## 🔒 Security
+
+- JWT-based authentication
+- Password hashing with bcrypt
+- CORS enabled
+- Non-root Docker user
+- Environment-based secrets
+
+## 📦 Docker Services
+
+1. **mongodb** - Database service
+2. **backend** - API service
+3. **frontend** - Web application
+
+All services include health checks and automatic restart.
+
+## 🐛 Troubleshooting
+
+See [DOCKER.md](./DOCKER.md#troubleshooting) for common issues and solutions.
+
+## 📄 License
+
+ISC
+
+## 👤 Author
+
+Data Scraping Team
+
+---
+
+**Ready to start?** Check out [QUICKSTART.md](./QUICKSTART.md)!
+
