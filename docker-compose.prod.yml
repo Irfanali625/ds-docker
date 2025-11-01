@@ -8,9 +8,9 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
-      MONGO_INITDB_DATABASE: data-scraping
+      MONGODB_INITDB_ROOT_USERNAME: admin
+      MONGODB_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      MONGODB_INITDB_DATABASE: data-scraping
     volumes:
       - mongodb_data_prod:/data/db
     networks:
@@ -32,10 +32,10 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
-    networks:
-      - ds-network-prod
     volumes:
       - ./ds-backend/uploads:/app/uploads
+    networks:
+      - ds-network-prod
 
   frontend:
     build:
