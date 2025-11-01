@@ -37,9 +37,6 @@ services:
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
       TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
-    depends_on:
-      mongodb:
-        condition: service_healthy
     networks:
       - ds-network-prod
     volumes:
@@ -63,9 +60,6 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: http://203.161.58.142:8000
-    depends_on:
-      backend:
-        condition: service_healthy
     networks:
       - ds-network-prod
     healthcheck:
