@@ -8,18 +8,13 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
-      MONGO_INITDB_DATABASE: data-scraping
+    MONGO_INITDB_ROOT_USERNAME: admin
+    MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+    MONGO_INITDB_DATABASE: data-scraping
     volumes:
-      - mongodb_data_prod:/data/db
+      - mongodb_data_prod:/data/db:rw
     networks:
       - ds-network-prod
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/data-scraping --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   backend:
     build:
@@ -41,11 +36,6 @@ services:
       - ds-network-prod
     volumes:
       - ./ds-backend/uploads:/app/uploads
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   frontend:
     build:
@@ -62,11 +52,6 @@ services:
       NEXT_PUBLIC_API_URL: http://203.161.58.142:8000
     networks:
       - ds-network-prod
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   mongodb_data_prod:
