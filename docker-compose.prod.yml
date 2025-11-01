@@ -12,7 +12,7 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
       MONGO_INITDB_DATABASE: data-scraping
     volumes:
-      - mongodb_data_prod:/data/db:rw
+      - mongodb_data_prod:/data/db
     networks:
       - ds-network-prod
 
