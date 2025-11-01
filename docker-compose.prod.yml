@@ -8,9 +8,9 @@ services:
     ports:
       - "27017:27017"
     environment:
-    MONGO_INITDB_ROOT_USERNAME: admin
-    MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
-    MONGO_INITDB_DATABASE: data-scraping
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      MONGO_INITDB_DATABASE: data-scraping
     volumes:
       - mongodb_data_prod:/data/db:rw
     networks:
@@ -60,4 +60,3 @@ volumes:
 networks:
   ds-network-prod:
     driver: bridge
-
