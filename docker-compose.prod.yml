@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   mongodb:
-    image: quay.io/mongodb/mongodb-community-server:4.4.29-ubi8
+    image: mongo:8.0
     container_name: ds-mongodb-prod
     restart: unless-stopped
     ports:
