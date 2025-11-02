@@ -1,18 +1,17 @@
 version: '3.8'
 
 services:
-  mongodb:
-    image: mongo:7.0
-    container_name: ds-mongodb-prod
+  mongo:
+    image: mongo
+    container_name: ds-mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
-      MONGO_INITDB_DATABASE: data-scraping
     volumes:
-      - mongodb_data_prod:/data/db
+      - ./mongodb:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_DB_PASSWORD}
     networks:
       - ds-network-prod
 
@@ -20,21 +19,16 @@ services:
     build:
       context: ./ds-backend
       dockerfile: Dockerfile
-    container_name: ds-backend-prod
+    container_name: ds-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
-    environment:
-      NODE_ENV: production
-      PORT: 8000
-      MONGODB_URI: mongodb://admin:password123@mongodb:27017/data-scraping?authSource=admin
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
-      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+    env_file:
+      - ./ds-backend/.env 
     volumes:
       - ./ds-backend/uploads:/app/uploads
     depends_on:
-      - mongodb
+      - mongo
     networks:
       - ds-network-prod
 
@@ -42,20 +36,19 @@ services:
     build:
       context: ./ds-frontend
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: http://203.161.58.142:8000
-    container_name: ds-frontend-prod
+    container_name: ds-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://203.161.58.142:8000
+    env_file:
+      - ./ds-frontend/.env
+    depends_on:
+      - backend
     networks:
       - ds-network-prod
 
 volumes:
-  mongodb_data_prod:
+  mongodb_data:
     driver: local
 
 networks:

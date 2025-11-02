@@ -1,2 +1,4 @@
 ds-backend
 ds-frontend
+.env
+mongodb
