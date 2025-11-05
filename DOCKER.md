@@ -11,7 +11,7 @@ This project uses Docker Compose to run the entire application stack including M
 
 1. **Clone and navigate to the project:**
    ```bash
-   cd "Data Scraping"
+   cd "Phone Validation"
    ```
 
 2. **Build and start all services:**

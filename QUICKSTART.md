@@ -11,7 +11,7 @@ The easiest way to run the entire application stack:
 
 1. **Open terminal in the project root:**
    ```bash
-   cd "Data Scraping"
+   cd "Phone Validation"
    ```
 
 2. **Start all services:**

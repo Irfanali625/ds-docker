@@ -2,7 +2,7 @@
 
 ## 📋 Summary
 
-Your Data Scraping application is now fully Dockerized! All necessary files have been created and configured.
+Your Phone Validation application is now fully Dockerized! All necessary files have been created and configured.
 
 ## 📁 Files Created
 

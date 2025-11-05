@@ -1,4 +1,4 @@
-# Data Scraping Application
+# Phone Validation Application
 
 A full-stack application for  phone validation with Docker support.
 
@@ -30,7 +30,7 @@ A full-stack application for  phone validation with Docker support.
 
 ```bash
 # Clone and navigate to project
-cd "Data Scraping"
+cd "Phone Validation"
 
 # Start all services
 docker-compose up --build
@@ -56,7 +56,7 @@ For complete Docker documentation, see [DOCKER.md](./DOCKER.md)
 ## 📁 Project Structure
 
 ```
-Data Scraping/
+Phone Validation/
 ├── docker-compose.yml          # Main Docker orchestration
 ├── QUICKSTART.md               # Quick start guide
 ├── DOCKER.md                   # Comprehensive Docker docs
@@ -196,7 +196,7 @@ ISC
 
 ## 👤 Author
 
-Data Scraping Team
+Phone Validation Team
 
 ---
 

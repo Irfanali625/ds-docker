@@ -1,6 +1,6 @@
 # Production Setup Guide
 
-This guide will help you deploy the Data Scraping application to your production server at `203.161.58.142`.
+This guide will help you deploy the Phone Validation application to your production server at `203.161.58.142`.
 
 ## Prerequisites
 
