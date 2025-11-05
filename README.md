@@ -1,6 +1,6 @@
 # Data Scraping Application
 
-A full-stack application for managing contacts, leads, and phone validation with Docker support.
+A full-stack application for  phone validation with Docker support.
 
 ## 🏗️ Architecture
 
@@ -145,8 +145,6 @@ The application uses environment variables configured in `docker-compose.yml`:
 ## 🎯 Features
 
 - ✅ User authentication (JWT)
-- ✅ Contact management
-- ✅ Lead tracking system
 - ✅ Phone number validation
 - ✅ CSV file upload
 - ✅ Docker containerization
@@ -163,12 +161,6 @@ For development without Docker, see [QUICKSTART.md](./QUICKSTART.md#manual-setup
 ### Authentication
 - `POST /api/auth/register` - Register user
 - `POST /api/auth/login` - Login user
-
-### Contacts
-- `GET /api/contacts` - Get contacts
-- `GET /api/contacts/random` - Get random contact
-- `POST /api/contacts/records` - Create user record
-- `GET /api/contacts/my-leads` - Get user leads
 
 ### Phone Validation
 - `POST /api/phone-validation/single` - Validate single number
