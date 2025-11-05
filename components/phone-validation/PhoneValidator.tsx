@@ -15,7 +15,7 @@ import { downloadResults } from "@/helpers/helpers";
 
 export function PhoneValidator() {
   const [activeTab, setActiveTab] = useState<"single" | "bulk" | "csv">("single");
-  const [singleResult, setSingleResult] = useState<PhoneValidationResult | null>(null);
+  const [singleResult, setSingleResult] = useState<PhoneValidationResult[] | null>(null);
   const [bulkResult, setBulkResult] = useState<BulkValidationResult | null>(null);
   const [csvResult, setCsvResult] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);

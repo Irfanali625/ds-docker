@@ -1,3 +1,5 @@
+import { IconDownload } from "@tabler/icons-react";
+
 interface ValidationResult {
   phoneNumber: string;
   isValid?: boolean;
@@ -14,11 +16,17 @@ interface ValidationSummaryProps {
   onDownload: () => void;
 }
 
-export function ValidationSummary({ total, results, onDownload }: ValidationSummaryProps) {
+export function ValidationSummary({
+  total,
+  results,
+  onDownload,
+}: ValidationSummaryProps) {
   if (total === 0) {
-    return <p className="text-gray-500 text-center mt-4">No results to display</p>;
+    return (
+      <p className="text-gray-500 text-center mt-4">No results to display</p>
+    );
   }
-  
+
   const validCount = results.filter((r) => r.isValid).length;
   const invalidCount = results.filter((r) => r.isValid === false).length;
   const unknownCount = total - validCount - invalidCount;
@@ -31,17 +39,28 @@ export function ValidationSummary({ total, results, onDownload }: ValidationSumm
         <Stat label="Invalid" value={invalidCount} color="text-red-600" />
         <Stat label="Unknown" value={unknownCount} color="text-yellow-600" />
       </div>
-      <button
-        onClick={onDownload}
-        className="w-full mt-4 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-      >
-        Download Results as CSV
-      </button>
+      <div className="flex justify-end">
+        <button
+          onClick={onDownload}
+          className="flex items-center gap-2 mt-4 px-4 text-xs py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+        >
+          Download Result as CSV
+          <IconDownload/>
+        </button>
+      </div>
     </div>
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: number; color: string }) {
+function Stat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
   return (
     <div className="text-center">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>

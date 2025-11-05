@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { IconLoader, IconCheck, IconX } from "@tabler/icons-react";
 import { PhoneValidationResult } from "@/types/phoneValidation";
+import { ValidationSummary } from "./ValidationSummary";
+import { downloadResults } from "@/helpers/helpers";
 
 interface SingleValidationProps {
   api: any;
   loading: boolean;
   setLoading: (v: boolean) => void;
   setError: (v: string | null) => void;
-  singleResult: PhoneValidationResult | null;
-  setSingleResult: (r: PhoneValidationResult | null) => void;
+  singleResult: PhoneValidationResult[] | null;
+  setSingleResult: (r: PhoneValidationResult[] | null) => void;
 }
 
 export function SingleValidation({
@@ -22,7 +24,10 @@ export function SingleValidation({
   const [singlePhone, setSinglePhone] = useState("");
 
   const validateSingle = async () => {
-    if (!singlePhone.trim()) return setError("Please enter a phone number");
+    if (!singlePhone.trim()) {
+      setError("Please enter a phone number");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -36,8 +41,27 @@ export function SingleValidation({
     }
   };
 
+  const result = singleResult?.[0];
+
+  const InfoRow = ({
+    label,
+    value,
+  }: {
+    label: string;
+    value: string | number | boolean | undefined;
+  }) => {
+    if (value === undefined || value === null || value === "") return null;
+    return (
+      <div>
+        <span className="text-sm text-gray-500">{label}:</span>
+        <p className="font-semibold break-all">{String(value)}</p>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Input section */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Phone Number
@@ -64,69 +88,68 @@ export function SingleValidation({
         </div>
       </div>
 
-      {singleResult && (
-        <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <span className="text-sm text-gray-500">Phone:</span>
-              <p className="font-semibold">{singleResult.phoneNumber}</p>
-            </div>
+      {/* Result section */}
+      {result && (
+        <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <InfoRow label="Phone" value={result.phoneNumber} />
             <div>
               <span className="text-sm text-gray-500">Valid:</span>
               <span
-                className={`ml-2 px-2 py-1 rounded text-xs font-semibold ${
-                  singleResult.isValid
+                className={`ml-2 px-2 py-1 rounded text-xs font-semibold inline-flex items-center gap-1 ${
+                  result.isValid
                     ? "bg-green-100 text-green-800"
                     : "bg-red-100 text-red-800"
                 }`}
               >
-                {singleResult.isValid ? (
-                  <IconCheck className="w-4 h-4 inline" />
+                {result.isValid ? (
+                  <IconCheck className="w-4 h-4" />
                 ) : (
-                  <IconX className="w-4 h-4 inline" />
+                  <IconX className="w-4 h-4" />
                 )}
-                {singleResult.isValid ? " Yes" : " No"}
+                {result.isValid ? "Yes" : "No"}
               </span>
             </div>
-            {singleResult.isValid && singleResult.countryCode && (
-              <div>
-                <span className="text-sm text-gray-500">Country Code:</span>
-                <p className="font-semibold">{singleResult.countryCode}</p>
-              </div>
-            )}
-            {singleResult.isValid && singleResult.formattedNumber && (
-              <div>
-                <span className="text-sm text-gray-500">E.164:</span>
-                <p className="font-semibold">{singleResult.formattedNumber}</p>
-              </div>
-            )}
-            {singleResult.isValid && (singleResult as any).nationalFormat && (
-              <div>
-                <span className="text-sm text-gray-500">National Format:</span>
-                <p className="font-semibold">
-                  {(singleResult as any).nationalFormat}
-                </p>
-              </div>
-            )}
-            {singleResult.isValid &&
-              typeof (singleResult as any).isReachable !== "undefined" && (
-                <div>
-                  <span className="text-sm text-gray-500">Is Reachable:</span>
-                  <p className="font-semibold">
-                    {(singleResult as any).isReachable ? "Yes" : "No"}
-                  </p>
-                </div>
-              )}
-            {singleResult.isValid && singleResult.validatedAt && (
-              <div className="col-span-2">
-                <span className="text-sm text-gray-500">Validated At:</span>
-                <p className="font-mono text-sm">
-                  {new Date(singleResult.validatedAt as any).toLocaleString()}
-                </p>
-              </div>
+
+            {result.isValid && (
+              <>
+                <InfoRow label="Country Code" value={result.countryCode} />
+                <InfoRow label="E.164 Format" value={result.formattedNumber} />
+                <InfoRow
+                  label="National Format"
+                  value={(result as any).nationalFormat}
+                />
+                <InfoRow
+                  label="Reachable"
+                  value={
+                    typeof (result as any).isReachable !== "undefined"
+                      ? (result as any).isReachable
+                        ? "Yes"
+                        : "No"
+                      : undefined
+                  }
+                />
+                <InfoRow
+                  label="Validated At"
+                  value={
+                    result.validatedAt
+                      ? new Date(result.validatedAt).toLocaleString()
+                      : undefined
+                  }
+                />
+              </>
             )}
           </div>
         </div>
+      )}
+
+      {/* Summary section */}
+      {singleResult && (
+        <ValidationSummary
+          total={1}
+          results={singleResult}
+          onDownload={() => downloadResults(singleResult)}
+        />
       )}
     </div>
   );
