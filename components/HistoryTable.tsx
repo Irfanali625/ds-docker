@@ -1,10 +1,10 @@
 "use client";
 
-interface LeadsTableProps {
+interface HistoryTableProps {
   history: any;
 }
 
-export function HistoryTable({ history }: LeadsTableProps) {
+export function HistoryTable({ history }: HistoryTableProps) {
   if (history.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-lg p-6">

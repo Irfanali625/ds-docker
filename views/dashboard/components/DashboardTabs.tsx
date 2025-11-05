@@ -24,7 +24,7 @@ export function DashboardTabs({ activeTab, setActiveTab }: DashboardTabsProps) {
         </button>
         <button
           onClick={() => setActiveTab("history")}
-          className={tabClasses("my-leads")}
+          className={tabClasses("history")}
         >
           History
         </button>

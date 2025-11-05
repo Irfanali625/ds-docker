@@ -1,5 +1,5 @@
+import { HistoryTable } from "@/components/HistoryTable";
 import React from "react";
-import { HistoryTable } from "@/components/LeadsTable";
 
 interface MyHistoryProps {
   history: any;

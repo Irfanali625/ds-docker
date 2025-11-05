@@ -69,7 +69,7 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
-      throw new Error(`Failed to fetch user leads: ${response.statusText}`);
+      throw new Error(`Failed to fetch user history: ${response.statusText}`);
     }
     return response.json();
   },
