@@ -7,7 +7,7 @@ interface BulkValidationProps {
   loading: boolean;
   setLoading: (v: boolean) => void;
   setError: (v: string | null) => void;
-  bulkResult: BulkValidationResult | null;
+  bulkResult: any | null;
   setBulkResult: (r: BulkValidationResult | null) => void;
   downloadResults: (data: any) => void;
 }
@@ -35,8 +35,8 @@ export function BulkValidation({
     setLoading(true);
     setError(null);
     try {
-      const result = await api.validateBulkPhoneNumbers(phones);
-      setBulkResult(result);
+      const response = await api.validateBulkPhoneNumbers(phones);
+      setBulkResult(response.data);
     } catch (err: any) {
       setError(err.message || "Failed to validate phone numbers");
     } finally {
@@ -71,8 +71,8 @@ export function BulkValidation({
       {bulkResult && (
         <ValidationSummary
           total={bulkResult.total}
-          results={bulkResult.results}
-          onDownload={() => downloadResults(bulkResult.results)}
+          results={bulkResult.result}
+          onDownload={() => downloadResults(bulkResult.result)}
         />
       )}
     </div>

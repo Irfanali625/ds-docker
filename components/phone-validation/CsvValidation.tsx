@@ -29,8 +29,8 @@ export function CsvValidation({
     setLoading(true);
     setError(null);
     try {
-      const result = await api.validateCSV(csvFile);
-      setCsvResult(result);
+      const response = await api.validateCSV(csvFile);
+      setCsvResult(response.data);
     } catch (err: any) {
       setError(err.message || "Failed to validate CSV file");
     } finally {
@@ -76,8 +76,8 @@ export function CsvValidation({
       {csvResult && (
         <ValidationSummary
           total={csvResult.total}
-          results={csvResult.results}
-          onDownload={() => downloadResults(csvResult.results)}
+          results={csvResult.result}
+          onDownload={() => downloadResults(csvResult.result)}
         />
       )}
     </div>

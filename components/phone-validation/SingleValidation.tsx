@@ -9,7 +9,7 @@ interface SingleValidationProps {
   loading: boolean;
   setLoading: (v: boolean) => void;
   setError: (v: string | null) => void;
-  singleResult: PhoneValidationResult[] | null;
+  singleResult: any | null;
   setSingleResult: (r: PhoneValidationResult[] | null) => void;
 }
 
@@ -32,8 +32,8 @@ export function SingleValidation({
     setLoading(true);
     setError(null);
     try {
-      const result = await api.validatePhoneNumber(singlePhone);
-      setSingleResult(result);
+      const response = await api.validatePhoneNumber(singlePhone);
+      setSingleResult(response.data);
     } catch (err: any) {
       setError(err.message || "Failed to validate phone number");
     } finally {
@@ -41,7 +41,7 @@ export function SingleValidation({
     }
   };
 
-  const result = singleResult?.[0];
+  const result = singleResult?.result?.[0];
 
   const InfoRow = ({
     label,
@@ -61,7 +61,6 @@ export function SingleValidation({
 
   return (
     <div className="space-y-6">
-      {/* Input section */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Phone Number
@@ -147,7 +146,7 @@ export function SingleValidation({
       {singleResult && (
         <ValidationSummary
           total={1}
-          results={singleResult}
+          results={singleResult.result}
           onDownload={() => downloadResults(singleResult)}
         />
       )}
