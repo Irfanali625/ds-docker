@@ -78,9 +78,7 @@ export function CsvValidation({
         <ValidationSummary
           total={csvResult.total}
           results={csvResult.result}
-          onDownload={() => {
-            getDownloadUrl(csvResult.downloadUrl);
-          }}
+          filePath={csvResult.downloadUrl}
         />
       )}
     </div>

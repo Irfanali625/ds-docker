@@ -148,9 +148,7 @@ export function SingleValidation({
         <ValidationSummary
           total={1}
           results={singleResult.result}
-          onDownload={() => {
-            getDownloadUrl(singleResult.downloadUrl);
-          }}
+          filePath={singleResult.downloadUrl}
         />
       )}
     </div>

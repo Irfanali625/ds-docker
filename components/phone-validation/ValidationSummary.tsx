@@ -1,3 +1,4 @@
+import { getDownloadUrl } from "@/utils/getUrls";
 import { IconDownload } from "@tabler/icons-react";
 
 interface ValidationResult {
@@ -13,13 +14,13 @@ interface ValidationResult {
 interface ValidationSummaryProps {
   total: number;
   results: ValidationResult[];
-  onDownload: () => void;
+  filePath: string;
 }
 
 export function ValidationSummary({
   total,
   results,
-  onDownload,
+  filePath,
 }: ValidationSummaryProps) {
   if (total === 0) {
     return (
@@ -40,13 +41,13 @@ export function ValidationSummary({
         <Stat label="Unknown" value={unknownCount} color="text-yellow-600" />
       </div>
       <div className="flex justify-end">
-        <button
-          onClick={onDownload}
+        <a
+          href={getDownloadUrl(filePath)}
           className="flex items-center gap-2 mt-4 px-4 text-xs py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
         >
           Download Result as CSV
-          <IconDownload/>
-        </button>
+          <IconDownload />
+        </a>
       </div>
     </div>
   );

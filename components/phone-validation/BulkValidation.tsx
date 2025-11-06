@@ -73,9 +73,7 @@ export function BulkValidation({
         <ValidationSummary
           total={bulkResult.total}
           results={bulkResult.result}
-          onDownload={() => {
-            getDownloadUrl(bulkResult.downloadUrl);
-          }}
+          filePath={bulkResult.downloadUrl}
         />
       )}
     </div>
