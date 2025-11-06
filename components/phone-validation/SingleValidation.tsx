@@ -3,6 +3,7 @@ import { IconLoader, IconCheck, IconX } from "@tabler/icons-react";
 import { PhoneValidationResult } from "@/types/phoneValidation";
 import { ValidationSummary } from "./ValidationSummary";
 import { downloadResults } from "@/helpers/helpers";
+import { getDownloadUrl } from "@/utils/getUrls";
 
 interface SingleValidationProps {
   api: any;
@@ -147,7 +148,9 @@ export function SingleValidation({
         <ValidationSummary
           total={1}
           results={singleResult.result}
-          onDownload={() => downloadResults(singleResult)}
+          onDownload={() => {
+            getDownloadUrl(singleResult.downloadUrl);
+          }}
         />
       )}
     </div>

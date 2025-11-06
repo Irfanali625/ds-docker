@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { IconUpload } from "@tabler/icons-react";
 import { ValidationSummary } from "./ValidationSummary";
+import { getDownloadUrl } from "@/utils/getUrls";
 
 interface CsvValidationProps {
   api: any;
@@ -77,7 +78,9 @@ export function CsvValidation({
         <ValidationSummary
           total={csvResult.total}
           results={csvResult.result}
-          onDownload={() => downloadResults(csvResult.result)}
+          onDownload={() => {
+            getDownloadUrl(csvResult.downloadUrl);
+          }}
         />
       )}
     </div>

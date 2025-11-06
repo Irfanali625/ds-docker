@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BulkValidationResult } from "@/types/phoneValidation";
 import { ValidationSummary } from "./ValidationSummary";
+import { getDownloadUrl } from "@/utils/getUrls";
 
 interface BulkValidationProps {
   api: any;
@@ -72,7 +73,9 @@ export function BulkValidation({
         <ValidationSummary
           total={bulkResult.total}
           results={bulkResult.result}
-          onDownload={() => downloadResults(bulkResult.result)}
+          onDownload={() => {
+            getDownloadUrl(bulkResult.downloadUrl);
+          }}
         />
       )}
     </div>

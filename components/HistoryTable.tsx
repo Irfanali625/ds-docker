@@ -1,11 +1,10 @@
 "use client";
 
+import { getDownloadUrl } from "@/utils/getUrls";
+
 interface HistoryTableProps {
   history: any;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const MINIO_BUCKET = process.env.NEXT_PUBLIC_MINIO_BUCKET || "bucket";
 
 export function HistoryTable({ history }: HistoryTableProps) {
   if (!history || history.length === 0) {
@@ -32,10 +31,6 @@ export function HistoryTable({ history }: HistoryTableProps) {
     } catch {
       return dateString;
     }
-  };
-
-  const getDownloadUrl = (filePath: string) => {
-    return `${API_BASE_URL}/${MINIO_BUCKET}/${filePath}`;
   };
 
   const getTypeColor = (type: string) => {
