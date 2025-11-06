@@ -2,3 +2,4 @@ ds-backend
 ds-frontend
 .env
 mongodb
+minio-data
