@@ -35,7 +35,6 @@ export function HistoryTable({ history }: HistoryTableProps) {
   };
 
   const getDownloadUrl = (filePath: string) => {
-    // Construct the download URL
     return `${API_BASE_URL}/${MINIO_BUCKET}/${filePath}`;
   };
 
