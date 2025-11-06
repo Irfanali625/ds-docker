@@ -17,19 +17,16 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value || 
                 request.headers.get('authorization')?.replace('Bearer ', '');
   
-  // If accessing a protected route without a token, redirect to login
-  if (isProtectedRoute && !token) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+  // Don't redirect protected routes - let client-side handle authentication
+  // This prevents logout on refresh when token is in localStorage but not in cookie yet
+  // The ProtectedRoute component will handle the redirect if needed
   
-  // If accessing login/register while authenticated, redirect to dashboard
+  // If accessing login/register while authenticated (has cookie), redirect to dashboard
   if ((pathname === '/login' || pathname === '/register') && token) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
   
-  // If on root and authenticated, redirect to dashboard
+  // If on root and authenticated (has cookie), redirect to dashboard
   if (pathname === '/' && token) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }

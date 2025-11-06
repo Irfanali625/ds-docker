@@ -56,7 +56,11 @@ export const authApi = {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get user');
+      // Throw the response so we can check status code
+      const error: any = new Error(`Failed to get user: ${response.status}`);
+      error.status = response.status;
+      error.response = response;
+      throw error;
     }
 
     return response.json();
@@ -71,8 +75,17 @@ export const getAuthToken = (): string | null => {
 export const setAuthToken = (token: string): void => {
   if (typeof window === 'undefined') return;
   localStorage.setItem('auth_token', token);
-  // Also set in cookie for middleware access
-  document.cookie = `auth_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  // Also set in cookie for middleware access (7 days expiration)
+  const maxAge = 60 * 60 * 24 * 7; // 7 days in seconds
+  const isSecure = window.location.protocol === 'https:';
+  const cookieOptions = [
+    `auth_token=${token}`,
+    `path=/`,
+    `max-age=${maxAge}`,
+    `SameSite=Lax`,
+    ...(isSecure ? ['Secure'] : [])
+  ].join('; ');
+  document.cookie = cookieOptions;
 };
 
 export const removeAuthToken = (): void => {
