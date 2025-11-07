@@ -6,17 +6,22 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LoginView } from "@/views/auth/LoginView";
 
 export default function LoginPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && isAuthenticated) {
+    // Check both isAuthenticated and user to handle restored sessions
+    if (!loading && (isAuthenticated || user)) {
       router.push("/dashboard");
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, loading, user, router]);
 
-  if (loading || isAuthenticated) {
-    return null;
+  if (loading || isAuthenticated || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-xl text-gray-700">Redirecting...</div>
+      </div>
+    );
   }
 
   return (

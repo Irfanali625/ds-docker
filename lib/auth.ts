@@ -1,4 +1,5 @@
 import { User, AuthResponse } from '@/types';
+import { getCookie, setCookie, deleteCookie } from '@/utils/cookies';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -56,7 +57,6 @@ export const authApi = {
     });
 
     if (!response.ok) {
-      // Throw the response so we can check status code
       const error: any = new Error(`Failed to get user: ${response.status}`);
       error.status = response.status;
       error.response = response;
@@ -69,30 +69,22 @@ export const authApi = {
 
 export const getAuthToken = (): string | null => {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('auth_token');
+  try {
+    const token = getCookie('auth_token');
+    return token || null;
+  } catch {
+    return null;
+  }
 };
 
 export const setAuthToken = (token: string): void => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('auth_token', token);
-  // Also set in cookie for middleware access (7 days expiration)
-  const maxAge = 60 * 60 * 24 * 7; // 7 days in seconds
-  const isSecure = window.location.protocol === 'https:';
-  const cookieOptions = [
-    `auth_token=${token}`,
-    `path=/`,
-    `max-age=${maxAge}`,
-    `SameSite=Lax`,
-    ...(isSecure ? ['Secure'] : [])
-  ].join('; ');
-  document.cookie = cookieOptions;
+  setCookie('auth_token', token, 7);
 };
 
 export const removeAuthToken = (): void => {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('auth_token');
-  // Also remove cookie
-  document.cookie = 'auth_token=; path=/; max-age=0; SameSite=Lax';
+  deleteCookie('auth_token');
 };
 
 export const getUser = (): User | null => {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconUpload } from "@tabler/icons-react";
+import { IconUpload, IconLoader, IconFileCheck } from "@tabler/icons-react";
 import { ValidationSummary } from "./ValidationSummary";
 import { getDownloadUrl } from "@/utils/getUrls";
 
@@ -33,7 +33,9 @@ export function CsvValidation({
       const response = await api.validateCSV(csvFile);
       setCsvResult(response.data);
     } catch (err: any) {
-      setError(err.message || "Failed to validate CSV file");
+      const errorMessage = err.message || "Failed to validate CSV file";
+      setError(errorMessage);
+      // Error will be handled by parent component if it's a limit error
     } finally {
       setLoading(false);
     }
@@ -68,9 +70,19 @@ export function CsvValidation({
         <button
           onClick={validateCSV}
           disabled={loading || !csvFile}
-          className="mt-4 w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center gap-2 w-full mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
-          {loading ? "Processing..." : "Validate CSV"}
+          {loading ? (
+            <>
+              <IconLoader className="w-4 h-4 animate-spin" stroke={2} />
+              <span>Processing...</span>
+            </>
+          ) : (
+            <>
+              <IconFileCheck className="w-4 h-4" stroke={2} />
+              <span>Validate CSV</span>
+            </>
+          )}
         </button>
       </div>
 
