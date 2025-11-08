@@ -111,6 +111,25 @@ export const subscriptionApi = {
     }
   },
 
+  async createCheckout(payload: {
+    provider: "stripe" | "square";
+    successUrl: string;
+    cancelUrl?: string;
+  }): Promise<{ provider: string; checkoutUrl: string; paymentId: string }> {
+    const response = await fetch(`${API_BASE_URL}/api/subscription/checkout`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: "Failed to create checkout session" }));
+      throw new Error(error.error || error.message || "Failed to create checkout session");
+    }
+
+    return response.json();
+  },
+
   async createSubscription(): Promise<any> {
     const response = await fetch(`${API_BASE_URL}/api/subscription/create`, {
       method: "POST",

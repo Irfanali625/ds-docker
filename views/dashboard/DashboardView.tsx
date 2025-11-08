@@ -21,7 +21,6 @@ export function DashboardView() {
   const [history, getHistory] = useState<any[]>([]);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [premiumPrice, setPremiumPrice] = useState(19);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleLogout = () => {
     logout();
@@ -57,14 +56,7 @@ export function DashboardView() {
 
   useEffect(() => {
     loadPremiumPrice();
-  }, [refreshKey]);
-
-  const handleUpgradeSuccess = () => {
-    setRefreshKey((prev) => prev + 1);
-    if (activeTab === "subscription") {
-      loadPremiumPrice();
-    }
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -82,14 +74,13 @@ export function DashboardView() {
         {activeTab === "validator" && (
           <div className="space-y-6">
             <SubscriptionStatus onUpgrade={() => setShowUpgradeModal(true)} />
-            <PhoneValidator key={refreshKey} onUpgrade={handleUpgradeSuccess} />
+            <PhoneValidator />
           </div>
         )}
       </main>
       <UpgradeModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
-        onSuccess={handleUpgradeSuccess}
         premiumPrice={premiumPrice}
       />
     </div>
