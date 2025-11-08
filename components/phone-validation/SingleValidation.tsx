@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconLoader, IconCheck, IconX } from "@tabler/icons-react";
+import { IconLoader, IconCheck, IconX, IconSearch } from "@tabler/icons-react";
 import { PhoneValidationResult } from "@/types/phoneValidation";
 import { ValidationSummary } from "./ValidationSummary";
 import { downloadResults } from "@/helpers/helpers";
@@ -36,7 +36,13 @@ export function SingleValidation({
       const response = await api.validatePhoneNumber(singlePhone);
       setSingleResult(response.data);
     } catch (err: any) {
-      setError(err.message || "Failed to validate phone number");
+      const errorMessage = err.message || "Failed to validate phone number";
+      setError(errorMessage);
+      // Trigger upgrade modal if it's a limit error
+      if (err.requiresUpgrade || errorMessage.toLowerCase().includes("limit")) {
+        // The parent component will handle showing the upgrade modal
+        // by checking if error contains "limit"
+      }
     } finally {
       setLoading(false);
     }
@@ -77,12 +83,18 @@ export function SingleValidation({
           <button
             onClick={validateSingle}
             disabled={loading}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
             {loading ? (
-              <IconLoader className="w-5 h-5 animate-spin" />
+              <>
+                <IconLoader className="w-4 h-4 animate-spin" stroke={2} />
+                <span>Validating...</span>
+              </>
             ) : (
-              "Validate"
+              <>
+                <IconSearch className="w-4 h-4" stroke={2} />
+                <span>Validate</span>
+              </>
             )}
           </button>
         </div>

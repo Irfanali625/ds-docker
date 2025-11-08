@@ -1,8 +1,8 @@
 import React from "react";
 
 interface DashboardTabsProps {
-  activeTab: "validator" | "history";
-  setActiveTab: (tab: "validator" | "history") => void;
+  activeTab: "validator" | "history" | "subscription";
+  setActiveTab: (tab: "validator" | "history" | "subscription") => void;
 }
 
 export function DashboardTabs({ activeTab, setActiveTab }: DashboardTabsProps) {
@@ -27,6 +27,12 @@ export function DashboardTabs({ activeTab, setActiveTab }: DashboardTabsProps) {
           className={tabClasses("history")}
         >
           History
+        </button>
+        <button
+          onClick={() => setActiveTab("subscription")}
+          className={tabClasses("subscription")}
+        >
+          Subscription
         </button>
       </nav>
     </div>

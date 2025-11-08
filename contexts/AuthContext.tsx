@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { User } from '@/types';
 import { authApi, getAuthToken, setAuthToken, removeAuthToken, getUser, setUser, removeUser } from '@/lib/auth';
+import { getCookie } from '@/utils/cookies';
 
 interface AuthContextType {
   user: User | null;
@@ -16,43 +17,58 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUserState] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initializeAuth = (): { user: User | null; hasAuth: boolean } => {
+    if (typeof window === 'undefined') return { user: null, hasAuth: false };
+    try {
+      const token = getCookie('auth_token');
+      const userStr = localStorage.getItem('user');
+      if (token && userStr) {
+        const user = JSON.parse(userStr);
+        return { user, hasAuth: true };
+      }
+    } catch (error) {
+      console.error('Error initializing auth:', error);
+    }
+    return { user: null, hasAuth: false };
+  };
+
+  const initialState = initializeAuth();
+  const [user, setUserState] = useState<User | null>(initialState.user);
+  const [loading, setLoading] = useState(!initialState.hasAuth);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    // Check if user is already logged in
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+
+    if (initialState.hasAuth && initialState.user) {
+      const token = getAuthToken();
+      if (token) {
+        authApi.getCurrentUser(token)
+          .then((userData) => {
+            setUserState(userData);
+            setUser(userData);
+          })
+          .catch((error: any) => {
+            if (error?.status === 401 || error?.status === 403) {
+              removeAuthToken();
+              removeUser();
+              setUserState(null);
+              setLoading(false);
+            }
+          });
+      }
+      return;
+    }
+
     const token = getAuthToken();
     const savedUser = getUser();
 
     if (token && savedUser) {
-      // Immediately set user from localStorage to prevent logout on refresh
       setUserState(savedUser);
-      
-      // Ensure cookie is set (in case it was lost)
-      setAuthToken(token);
-      
-      // Verify token is still valid in the background
-      authApi.getCurrentUser(token)
-        .then((userData) => {
-          // Update with fresh user data if API call succeeds
-          setUserState(userData);
-          setUser(userData);
-        })
-        .catch((error) => {
-          // Only clear if we get a 401/403 (unauthorized/forbidden)
-          // Don't clear on network errors or other issues
-          if (error?.status === 401 || error?.status === 403) {
-            // Token is invalid, clear storage
-            removeAuthToken();
-            removeUser();
-            setUserState(null);
-          } else {
-            // Network error or other issue - keep user logged in
-            console.warn('Token verification failed, but keeping user logged in:', error);
-          }
-        })
-        .finally(() => setLoading(false));
+      setLoading(false);
     } else {
+      setUserState(null);
       setLoading(false);
     }
   }, []);
@@ -72,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    removeAuthToken(); // This also removes the cookie
+    removeAuthToken();
     removeUser();
     setUserState(null);
   };
