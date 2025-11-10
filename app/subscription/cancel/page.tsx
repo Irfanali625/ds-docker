@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -22,7 +24,10 @@ export default function SubscriptionCancelPage() {
         </p>
         <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-4 text-left text-sm text-yellow-700">
           <p className="font-semibold mb-1">Need help?</p>
-          <p>If you experienced an issue during checkout, please reach out to support and we&apos;ll be happy to assist.</p>
+          <p>
+            If you experienced an issue during checkout, please reach out to
+            support and we&apos;ll be happy to assist.
+          </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -43,4 +48,3 @@ export default function SubscriptionCancelPage() {
     </div>
   );
 }
-
