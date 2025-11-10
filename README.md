@@ -132,6 +132,16 @@ The application uses environment variables configured in `docker-compose.yml`:
 - `TWILIO_ACCOUNT_SID` - Optional
 - `TWILIO_AUTH_TOKEN` - Optional
 - `TWILIO_PHONE_NUMBER` - Optional
+- `STRIPE_SECRET_KEY` - Stripe API secret (required for Stripe payments)
+- `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret
+- `STRIPE_PRODUCT_NAME` - Optional label for Stripe checkout (default: "Premium Subscription")
+- `STRIPE_CURRENCY` - Optional currency code (default: `usd`)
+- `SQUARE_ACCESS_TOKEN` - Square access token (required for Square payments)
+- `SQUARE_LOCATION_ID` - Square location ID
+- `SQUARE_ENVIRONMENT` - `sandbox` or `production` (default: `sandbox`)
+- `SQUARE_WEBHOOK_SIGNATURE_KEY` - Square webhook signature key
+- `SQUARE_PRODUCT_NAME` - Optional label for Square checkout (default: "Premium Subscription")
+- `SQUARE_CURRENCY` - Optional currency code (default: `USD`)
 
 **Frontend:**
 - `NEXT_PUBLIC_API_URL` - API endpoint
@@ -148,6 +158,7 @@ The application uses environment variables configured in `docker-compose.yml`:
 - ✅ Phone number validation
 - ✅ CSV file upload
 - ✅ Docker containerization
+- ✅ Premium subscription with Stripe and Square payments
 - ✅ Health checks
 - ✅ Persistent data storage
 - ✅ Production-ready configuration
@@ -166,6 +177,14 @@ For development without Docker, see [QUICKSTART.md](./QUICKSTART.md#manual-setup
 - `POST /api/phone-validation/single` - Validate single number
 - `POST /api/phone-validation/bulk` - Validate multiple numbers
 - `POST /api/phone-validation/csv` - Validate CSV file
+
+### Subscriptions & Payments
+- `GET /api/subscription/status` - Current usage and subscription status
+- `POST /api/subscription/checkout` - Create payment checkout session (Stripe or Square)
+- `POST /api/subscription/create` - Manual subscription (fallback/manual activation)
+- `GET /api/subscription/history` - Subscription and payment history
+- `POST /webhooks/stripe` - Stripe webhook endpoint
+- `POST /webhooks/square` - Square webhook endpoint
 
 ### Health
 - `GET /health` - Health check
