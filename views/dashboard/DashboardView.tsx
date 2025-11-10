@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { PhoneValidator } from "@/components/phone-validation/PhoneValidator";
 import { api } from "@/lib/api";
@@ -14,17 +13,16 @@ import { subscriptionApi } from "@/lib/api";
 
 export function DashboardView() {
   const { user, logout } = useAuth();
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"validator" | "history" | "subscription">(
-    "validator"
-  );
+
+  const [activeTab, setActiveTab] = useState<
+    "validator" | "history" | "subscription"
+  >("validator");
   const [history, getHistory] = useState<any[]>([]);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [premiumPrice, setPremiumPrice] = useState(19);
 
   const handleLogout = () => {
     logout();
-    router.push("/login");
   };
 
   const loadHistory = async () => {
@@ -63,9 +61,7 @@ export function DashboardView() {
       <DashboardNavbar user={user} logout={handleLogout} />
       <main className="max-w-7xl mx-auto p-8">
         <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} />
-        {activeTab === "history" && (
-          <MyHistory history={history}/>
-        )}
+        {activeTab === "history" && <MyHistory history={history} />}
         {activeTab === "subscription" && (
           <div className="space-y-6">
             <SubscriptionStatus onUpgrade={() => setShowUpgradeModal(true)} />
