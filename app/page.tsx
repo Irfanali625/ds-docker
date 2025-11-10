@@ -10,7 +10,6 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading) {
-      // Check both isAuthenticated and user to handle restored sessions
       if (isAuthenticated || user) {
         router.push('/dashboard');
       } else {

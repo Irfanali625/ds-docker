@@ -12,14 +12,8 @@ import { BulkValidation } from "./BulkValidation";
 import { CsvValidation } from "./CsvValidation";
 import { downloadResults } from "@/helpers/helpers";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
-import { subscriptionApi } from "@/lib/api";
 
-
-interface PhoneValidatorProps {
-  onUpgrade?: () => void;
-}
-
-export function PhoneValidator({ onUpgrade }: PhoneValidatorProps) {
+export function PhoneValidator() {
   const [activeTab, setActiveTab] = useState<"single" | "bulk" | "csv">("single");
   const [singleResult, setSingleResult] = useState<PhoneValidationResult[] | null>(null);
   const [bulkResult, setBulkResult] = useState<BulkValidationResult | null>(null);
@@ -35,13 +29,6 @@ export function PhoneValidator({ onUpgrade }: PhoneValidatorProps) {
       setShowUpgradeModal(true);
     } else {
       setError(err.message || "Failed to validate");
-    }
-  };
-
-  const handleUpgradeSuccess = () => {
-    setShowUpgradeModal(false);
-    if (onUpgrade) {
-      onUpgrade();
     }
   };
 
@@ -120,7 +107,6 @@ export function PhoneValidator({ onUpgrade }: PhoneValidatorProps) {
       <UpgradeModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
-        onSuccess={handleUpgradeSuccess}
         premiumPrice={premiumPrice}
       />
     </div>
