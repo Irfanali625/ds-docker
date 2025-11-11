@@ -2,6 +2,9 @@ import cookies from "js-cookie";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+console.log('API ULR', API_BASE_URL);
+
+
 function getAuthHeaders(): HeadersInit {
   const token = cookies.get("auth_token");
   return {
