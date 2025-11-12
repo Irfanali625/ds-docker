@@ -11,7 +11,7 @@ This document describes the payment and subscription system implemented for the 
 - Once 5 validations are used, users must upgrade to continue
 
 ### Premium Subscription
-- **$19/month** for unlimited phone number validations
+- **$19.99/month** for unlimited phone number validations
 - 30-day subscription period
 - Automatic expiration after 30 days
 - Users must renew subscription to continue after expiration
@@ -32,7 +32,7 @@ This document describes the payment and subscription system implemented for the 
 - `id`: Unique payment ID
 - `userId`: User who made the payment
 - `subscriptionId`: Associated subscription ID
-- `amount`: Payment amount (19.00)
+- `amount`: Payment amount (19.99.00)
 - `currency`: Payment currency (USD)
 - `status`: Payment status (PENDING, COMPLETED, FAILED, REFUNDED)
 - `method`: Payment method (STRIPE, PAYPAL, MANUAL)
@@ -64,7 +64,7 @@ Get current subscription status and usage information.
     "hasActiveSubscription": false,
     "limitType": "free"
   },
-  "premiumPrice": 19
+  "premiumPrice": 19.99
 }
 ```
 
@@ -86,7 +86,7 @@ Create a new premium subscription (currently manual, payment gateway integration
   },
   "payment": {
     "id": "...",
-    "amount": 19,
+    "amount": 19.99,
     "status": "COMPLETED"
   }
 }

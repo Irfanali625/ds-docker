@@ -113,7 +113,7 @@ When working correctly:
       "remainingFree": 5,
       "limitType": "free"
     },
-    "premiumPrice": 19
+    "premiumPrice": 19.99
   }
   ```
 
