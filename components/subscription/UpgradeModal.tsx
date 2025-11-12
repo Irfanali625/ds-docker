@@ -26,16 +26,16 @@ export function UpgradeModal({
     description: string;
     icon: React.ReactNode;
   }> = [
-    {
-      id: "stripe",
-      name: "Stripe",
-      description: "Pay securely with debit/credit cards via Stripe Checkout.",
-      icon: <IconArrowUp className="w-5 h-5 text-indigo-600" stroke={2} />,
-    },
+    // {
+    //   id: "stripe",
+    //   name: "Stripe",
+    //   description: "Pay securely with debit/credit cards via Stripe Checkout.",
+    //   icon: <IconArrowUp className="w-5 h-5 text-indigo-600" stroke={2} />,
+    // },
     {
       id: "square",
-      name: "Square",
-      description: "Use Square Payments with card support and secure checkout.",
+      name: "Checkout",
+      description: "",
       icon: <IconArrowUp className="w-5 h-5 text-indigo-600" stroke={2} />,
     },
   ];
@@ -84,9 +84,6 @@ export function UpgradeModal({
           <h3 className="text-2xl font-bold text-gray-800 mb-2">
             Upgrade to Premium
           </h3>
-          <p className="text-gray-600">
-            Choose a secure payment provider to unlock unlimited validations.
-          </p>
         </div>
 
         <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-6 mb-6 border border-indigo-200">
@@ -129,21 +126,21 @@ export function UpgradeModal({
               key={provider.id}
               onClick={() => handleProviderCheckout(provider.id)}
               disabled={loadingProvider !== null}
-              className="w-full flex items-center justify-between gap-4 px-4 py-3 border border-indigo-200 rounded-lg bg-white hover:bg-indigo-50 transition-colors disabled:opacity-70"
+              className="w-full flex items-center justify-between gap-4 px-4 py-3 border border-indigo-200 rounded-lg bg-indigo-400 hover:bg-indigo-500 transition-colors disabled:opacity-70"
             >
               <div className="flex items-center gap-3 text-left">
                 <span className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100">
                   {provider.icon}
                 </span>
                 <div>
-                  <div className="font-semibold text-gray-800">{provider.name}</div>
-                  <div className="text-sm text-gray-600">{provider.description}</div>
+                  <div className="font-semibold text-white">{provider.name}</div>
+                  <div className="text-sm text-white">{provider.description}</div>
                 </div>
               </div>
               {loadingProvider === provider.id ? (
-                <IconLoader className="w-5 h-5 text-indigo-600 animate-spin" stroke={2} />
+                <IconLoader className="w-5 h-5 text-white animate-spin" stroke={2} />
               ) : (
-                <IconArrowUp className="w-5 h-5 text-indigo-600" stroke={2} />
+                <IconArrowUp className="w-5 h-5 text-white" stroke={2} />
               )}
             </button>
           ))}
@@ -158,7 +155,7 @@ export function UpgradeModal({
         </button>
 
         <p className="text-xs text-gray-500 text-center mt-4">
-          Payments are processed securely via Stripe or Square. Your subscription activates automatically after payment.
+          Payments are processed securely. Your subscription activates automatically after payment.
         </p>
       </div>
     </div>
