@@ -16,6 +16,8 @@ import {
 } from "@/lib/auth";
 import { useUserStore } from "@/zustand/userStore";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
+import cookies from "js-cookie";
 
 interface AuthContextType {
   user: User | null;
@@ -24,6 +26,7 @@ interface AuthContextType {
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  fetchAndSetUser: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,6 +54,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, [token]);
 
+  const fetchAndSetUser = async () => {
+    try {
+      const user = await api.me();
+      const token = cookies.get("auth_token")!;
+      const { setUser } = useUserStore.getState();
+      setUser(user, token);
+      return user;
+    } catch (err) {
+      console.error("Failed to fetch user:", err);
+      const { clearAuth } = useUserStore.getState();
+      clearAuth();
+      cookies.remove("auth_token");
+      throw err;
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const response = await authApi.login({ email, password });
     saveUser(response.user, response.token);
@@ -73,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     logout,
     isAuthenticated: !!user,
+    fetchAndSetUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

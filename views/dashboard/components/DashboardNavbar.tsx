@@ -1,5 +1,6 @@
-import React from "react";
-import { IconLogout } from "@tabler/icons-react";
+import React, { useState, useRef, useEffect } from "react";
+import { IconLogout, IconSettings, IconChevronDown, IconHome } from "@tabler/icons-react";
+import Link from "next/link";
 
 interface DashboardNavbarProps {
   user: any;
@@ -7,6 +8,20 @@ interface DashboardNavbarProps {
 }
 
 export function DashboardNavbar({ user, logout }: DashboardNavbarProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <nav className="bg-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -14,21 +29,52 @@ export function DashboardNavbar({ user, logout }: DashboardNavbarProps) {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center">
             VALID NUMBER CHECK
           </h1>
-          <div className="flex items-center gap-3 sm:gap-4">
-            <span className="text-sm sm:text-base text-gray-700 font-medium hidden sm:inline">
-              Welcome, {user?.name}
-            </span>
-            <span className="text-xs text-gray-700 font-medium sm:hidden">
-              {user?.name?.split(' ')[0]}
-            </span>
+
+          <div
+            className="relative flex items-center gap-3 sm:gap-4"
+            ref={menuRef}
+          >
+            {/* Username button */}
             <button
-              onClick={logout}
-              className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 active:bg-red-800 transition-all duration-200 font-medium text-sm shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
-              aria-label="Logout"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-100 transition-all duration-200 focus:outline-none"
             >
-              <IconLogout className="w-3.5 h-3.5" stroke={2} />
-              <span>Logout</span>
+              <span className="text-sm sm:text-base text-gray-700 font-medium">
+                {user?.name || "User"}
+              </span>
+              <IconChevronDown
+                className={`w-4 h-4 text-gray-600 transition-transform duration-200 ${
+                  menuOpen ? "rotate-180" : ""
+                }`}
+              />
             </button>
+
+            {/* Dropdown menu */}
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                >
+                  <IconHome className="w-4 h-4 text-gray-600" />
+                  Dashboard
+                </Link>
+                <Link
+                  href="/dashboard/settings"
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                >
+                  <IconSettings className="w-4 h-4 text-gray-600" />
+                  Settings
+                </Link>
+                <button
+                  onClick={logout}
+                  className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                >
+                  <IconLogout className="w-4 h-4" />
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,9 +1,10 @@
 import cookies from "js-cookie";
+import { getAuthToken, setUser } from "./auth";
+import { User } from "@/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-console.log('API ULR', API_BASE_URL);
-
+console.log("API ULR", API_BASE_URL);
 
 function getAuthHeaders(): HeadersInit {
   const token = cookies.get("auth_token");
@@ -68,7 +69,7 @@ export const api = {
     const formData = new FormData();
     formData.append("csvFile", file);
 
-    const token = cookies.get('auth_token');
+    const token = cookies.get("auth_token");
     const response = await fetch(`${API_BASE_URL}/api/phone-validation/csv`, {
       method: "POST",
       headers: {
@@ -102,6 +103,55 @@ export const api = {
     if (!response.ok) {
       throw new Error(`Failed to fetch user history: ${response.statusText}`);
     }
+    return response.json();
+  },
+
+  async updateProfile(payload: {
+    name: string;
+    email: string;
+    oldPassword?: string | null;
+    newPassword?: string | null;
+    confirmPassword?: string | null;
+  }): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/profile/update`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ error: "Failed to update profile" }));
+      const err: any = new Error(
+        error.error || error.message || "Failed to update profile"
+      );
+      err.response = response;
+      throw err;
+    }
+
+    return response.json();
+  },
+
+  async me(): Promise<User> {
+    const token = cookies.get("auth_token");
+    if (!token) {
+      throw new Error("No auth token found");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || "Failed to fetch user");
+    }
+
     return response.json();
   },
 };
