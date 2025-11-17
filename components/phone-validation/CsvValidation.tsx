@@ -20,9 +20,9 @@ export function CsvValidation({
   setError,
   csvResult,
   setCsvResult,
-  downloadResults,
 }: CsvValidationProps) {
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [phoneType, setPhoneType] = useState<"B2B" | "B2C">("B2B");
 
   const validateCSV = async () => {
     if (!csvFile) return setError("Please select a CSV file");
@@ -30,12 +30,11 @@ export function CsvValidation({
     setLoading(true);
     setError(null);
     try {
-      const response = await api.validateCSV(csvFile);
+      const response = await api.validateCSV(csvFile, phoneType);
       setCsvResult(response.data);
     } catch (err: any) {
       const errorMessage = err.message || "Failed to validate CSV file";
       setError(errorMessage);
-      // Error will be handled by parent component if it's a limit error
     } finally {
       setLoading(false);
     }
@@ -43,6 +42,20 @@ export function CsvValidation({
 
   return (
     <div className="space-y-4">
+      <div className="w-1/2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Type
+        </label>
+        <select
+          value={phoneType}
+          onChange={(e) => setPhoneType(e.target.value as "B2B" | "B2C")}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="B2B">B2B</option>
+          <option value="B2C">B2C</option>
+        </select>
+      </div>
+
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Upload CSV File (max 10MB, max 10000 rows)

@@ -21,9 +21,9 @@ export function BulkValidation({
   setError,
   bulkResult,
   setBulkResult,
-  downloadResults,
 }: BulkValidationProps) {
   const [bulkPhones, setBulkPhones] = useState("");
+  const [phoneType, setPhoneType] = useState<"B2B" | "B2C">("B2B");
 
   const validateBulk = async () => {
     const phones = bulkPhones
@@ -37,12 +37,11 @@ export function BulkValidation({
     setLoading(true);
     setError(null);
     try {
-      const response = await api.validateBulkPhoneNumbers(phones);
+      const response = await api.validateBulkPhoneNumbers(phones, phoneType);
       setBulkResult(response.data);
     } catch (err: any) {
       const errorMessage = err.message || "Failed to validate phone numbers";
       setError(errorMessage);
-      // Error will be handled by parent component if it's a limit error
     } finally {
       setLoading(false);
     }
@@ -50,6 +49,20 @@ export function BulkValidation({
 
   return (
     <div className="space-y-4">
+      <div className="w-1/2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Type
+        </label>
+        <select
+          value={phoneType}
+          onChange={(e) => setPhoneType(e.target.value as "B2B" | "B2C")}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="B2B">B2B</option>
+          <option value="B2C">B2C</option>
+        </select>
+      </div>
+
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Phone Numbers (one per line, max 1000)

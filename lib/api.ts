@@ -1,5 +1,4 @@
 import cookies from "js-cookie";
-import { getAuthToken, setUser } from "./auth";
 import { User } from "@/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -16,14 +15,15 @@ function getAuthHeaders(): HeadersInit {
 
 export const api = {
   async validatePhoneNumber(
-    phoneNumber: string
+    phoneNumber: string,
+    phoneType: string
   ): Promise<import("@/types/phoneValidation").PhoneValidationResult> {
     const response = await fetch(
       `${API_BASE_URL}/api/phone-validation/single`,
       {
         method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ phoneNumber }),
+        body: JSON.stringify({ phoneNumber, phoneType }),
       }
     );
     if (!response.ok) {
@@ -42,12 +42,13 @@ export const api = {
   },
 
   async validateBulkPhoneNumbers(
-    phoneNumbers: string[]
+    phoneNumbers: string[],
+    phoneType: string
   ): Promise<import("@/types/phoneValidation").BulkValidationResult> {
     const response = await fetch(`${API_BASE_URL}/api/phone-validation/bulk`, {
       method: "POST",
       headers: getAuthHeaders(),
-      body: JSON.stringify({ phoneNumbers }),
+      body: JSON.stringify({ phoneNumbers, phoneType }),
     });
     if (!response.ok) {
       const error = await response
@@ -65,9 +66,10 @@ export const api = {
     return response.json();
   },
 
-  async validateCSV(file: File): Promise<any> {
+  async validateCSV(file: File, phoneType: string): Promise<any> {
     const formData = new FormData();
     formData.append("csvFile", file);
+    formData.append("phoneType", phoneType)
 
     const token = cookies.get("auth_token");
     const response = await fetch(`${API_BASE_URL}/api/phone-validation/csv`, {

@@ -2,8 +2,6 @@ import { useState } from "react";
 import { IconLoader, IconCheck, IconX, IconSearch } from "@tabler/icons-react";
 import { PhoneValidationResult } from "@/types/phoneValidation";
 import { ValidationSummary } from "./ValidationSummary";
-import { downloadResults } from "@/helpers/helpers";
-import { getDownloadUrl } from "@/utils/getUrls";
 
 interface SingleValidationProps {
   api: any;
@@ -23,6 +21,7 @@ export function SingleValidation({
   setSingleResult,
 }: SingleValidationProps) {
   const [singlePhone, setSinglePhone] = useState("");
+  const [phoneType, setPhoneType] = useState<"B2B" | "B2C">("B2B");
 
   const validateSingle = async () => {
     if (!singlePhone.trim()) {
@@ -33,15 +32,12 @@ export function SingleValidation({
     setLoading(true);
     setError(null);
     try {
-      const response = await api.validatePhoneNumber(singlePhone);
+      const response = await api.validatePhoneNumber(singlePhone, phoneType);
       setSingleResult(response.data);
     } catch (err: any) {
       const errorMessage = err.message || "Failed to validate phone number";
       setError(errorMessage);
-      // Trigger upgrade modal if it's a limit error
       if (err.requiresUpgrade || errorMessage.toLowerCase().includes("limit")) {
-        // The parent component will handle showing the upgrade modal
-        // by checking if error contains "limit"
       }
     } finally {
       setLoading(false);
@@ -68,6 +64,20 @@ export function SingleValidation({
 
   return (
     <div className="space-y-6">
+      <div className="w-1/2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Type
+        </label>
+        <select
+          value={phoneType}
+          onChange={(e) => setPhoneType(e.target.value as "B2B" | "B2C")}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="B2B">B2B</option>
+          <option value="B2C">B2C</option>
+        </select>
+      </div>
+
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Phone Number
@@ -83,7 +93,7 @@ export function SingleValidation({
           <button
             onClick={validateSingle}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow"
           >
             {loading ? (
               <>
@@ -100,7 +110,6 @@ export function SingleValidation({
         </div>
       </div>
 
-      {/* Result section */}
       {result && (
         <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
           <div className="grid sm:grid-cols-2 gap-4">
@@ -155,7 +164,6 @@ export function SingleValidation({
         </div>
       )}
 
-      {/* Summary section */}
       {singleResult && (
         <ValidationSummary
           total={1}
