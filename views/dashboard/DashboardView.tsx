@@ -62,14 +62,10 @@ export function DashboardView() {
       <main className="max-w-7xl mx-auto p-8">
         <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} />
         {activeTab === "history" && <MyHistory history={history} />}
-        {activeTab === "subscription" && (
-          <div className="space-y-6">
-            <SubscriptionStatus onUpgrade={() => setShowUpgradeModal(true)} />
-          </div>
-        )}
         {activeTab === "validator" && (
           <div className="space-y-6">
-            <SubscriptionStatus onUpgrade={() => setShowUpgradeModal(true)} />
+            {/* Well be Set later */}
+            {/* <SubscriptionStatus onUpgrade={() => setShowUpgradeModal(true)} /> */}
             <PhoneValidator />
           </div>
         )}

@@ -28,12 +28,13 @@ export function DashboardTabs({ activeTab, setActiveTab }: DashboardTabsProps) {
         >
           History
         </button>
-        <button
+        {/* Well be Set later */}
+        {/* <button
           onClick={() => setActiveTab("subscription")}
           className={tabClasses("subscription")}
         >
           Subscription
-        </button>
+        </button> */}
       </nav>
     </div>
   );
