@@ -7,6 +7,8 @@ import subscriptionRoutes from './routes/subscriptionRoutes';
 import webhookRoutes from './routes/webhookRoutes';
 import { connectDB } from './database/db';
 import { getFile } from './lib/minio';
+import cron from 'node-cron';
+import { runDataCleaningJob } from './services/dataCleaningService';
 
 dotenv.config();
 
@@ -17,7 +19,6 @@ const minIoBucket = process.env.MINIO_BUCKET ||'bucket'
 
 app.use(cors());
 
-// Webhook raw body parsers must come before json middleware
 app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use('/webhooks/square', express.raw({ type: 'application/json' }));
 
@@ -82,5 +83,10 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+cron.schedule('*/30 * * * *', () => {
+  console.log('Running scheduled data cleaning job...');
+  runDataCleaningJob();
+});
 
 startServer();

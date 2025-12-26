@@ -6,6 +6,15 @@ const auth = new google.auth.GoogleAuth({
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
+export async function getSheetData(spreadsheetId: string, range: string) {
+  const sheets = google.sheets({ version: "v4", auth });
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range,
+  });
+  return response.data.values || [];
+}
+
 export async function appendToSheet({
   spreadsheetId,
   range,
@@ -30,4 +39,34 @@ export async function appendToSheet({
   });
 
   return true;
+}
+
+export async function deleteRows(spreadsheetId: string, sheetId: number, startIndex: number, endIndex: number) {
+  const sheets = google.sheets({ version: "v4", auth });
+  
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: "ROWS",
+              startIndex,
+              endIndex,
+            },
+          },
+        },
+      ],
+    },
+  });
+}
+
+export async function getSheetMetadata(spreadsheetId: string) {
+  const sheets = google.sheets({ version: "v4", auth });
+  const response = await sheets.spreadsheets.get({
+    spreadsheetId,
+  });
+  return response.data;
 }
