@@ -23,8 +23,6 @@ export const SHEET_MAP: Record<string, string> = {
   B2B_INVALID: "1DNg5h2GH8UMlFotASFpbzRIrQ0NuoagIix-I57qdfCw",
   B2C_VALID: "1QqIb2J93wa5MfNCuS9bh1CXzRdpn-fGqRGa0BOTqkbo",
   B2C_INVALID: "1mbw4KQ2Y3T6rpSqZHtptaMKJZV6HmT5fr2OZykw_qok",
-  B2B_MASTER: "1-ca_accIc24i8LPQlYfNPIZkOOI8sIT28rIQkuA-geE",
-  B2C_MASTER: "1fwT4i65nmNKpgNQ8c--IFkpCnq3A1GoFQU8u_bf2lak",
 };
 
 function getSpreadsheetId(phoneType: string, isValid: boolean | "ALL") {
@@ -162,7 +160,7 @@ export async function saveValidationResults({
 
   let minioUploaded = false;
   let minioError: Error | null = null;
-  
+
   try {
     await uploadFileToMinIO(publicPath, csvBuffer);
     minioUploaded = true;
