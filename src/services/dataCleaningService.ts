@@ -20,7 +20,7 @@ const CONFIG = {
 const BATCH_SIZE = 50;
 
 function findPhoneColumnIndex(headers: string[]): number {
-  const phoneKeywords = ["phone", "mobile", "contact", "cell", "tel"];
+  const phoneKeywords = ["phone", "mobile", 'Phone', 'Phone Number', 'Contact', 'Cell', 'Tel'];
   const index = headers.findIndex((h) =>
     phoneKeywords.some((keyword) => h.toLowerCase().includes(keyword))
   );
@@ -28,17 +28,14 @@ function findPhoneColumnIndex(headers: string[]): number {
 }
 
 async function getSheetId(spreadsheetId: string, title: string): Promise<number | null> {
-  const metadata = await getSheetMetadata(spreadsheetId);
-  const sheet = metadata.sheets?.find((s: any) => s.properties.title === title);
-  return sheet?.properties?.sheetId || null;
+    const metadata = await getSheetMetadata(spreadsheetId);
+    const sheet = metadata.sheets?.find((s: any) => s.properties.title === title);
+    return sheet?.properties?.sheetId || null;
 }
 
 async function processSheet(type: "B2B" | "B2C") {
   const { unclean, cleaned } = CONFIG[type];
   console.log(`Starting data cleaning for ${type}...`);
-
-  await ensureCleanedHeader(unclean, cleaned);
-
 
   const uncleanHeaders = (await getSheetData(unclean, "Sheet1!A1:Z1"))[0];
   if (!uncleanHeaders) {
@@ -47,7 +44,7 @@ async function processSheet(type: "B2B" | "B2C") {
   }
 
   const phoneColIndex = findPhoneColumnIndex(uncleanHeaders);
-  if (phoneColIndex === -1) {
+   if (phoneColIndex === -1) {
     console.log(`Could not find a 'Phone' column in ${type} headers:`, uncleanHeaders);
     return;
   }
@@ -61,8 +58,8 @@ async function processSheet(type: "B2B" | "B2C") {
 
   cleanedData.forEach((row) => {
     if (row[cleanedPhoneColIndex]) {
-      const p = String(row[cleanedPhoneColIndex]).replace(/\D/g, "");
-      if (p) existingPhones.add(p);
+       const p = String(row[cleanedPhoneColIndex]).replace(/\D/g, "");
+       if(p) existingPhones.add(p);
     }
   });
 
@@ -79,27 +76,27 @@ async function processSheet(type: "B2B" | "B2C") {
   console.log(`Processing ${rowsToProcess.length} rows from ${type}...`);
 
   const validRowsToAppend: any[][] = [];
-
+  
   for (const row of rowsToProcess) {
     const rawPhone = row[phoneColIndex];
     if (!rawPhone) {
-      continue;
+        continue;
     }
 
     const validation = await validatePhoneNumber(rawPhone);
 
     if (validation.isValid) {
       if (!existingPhones.has(validation.phoneNumber)) {
-        const newRow = [...row];
-        newRow[phoneColIndex] = validation.formattedNumber || validation.phoneNumber;
-
-        validRowsToAppend.push(newRow);
-        existingPhones.add(validation.phoneNumber);
+         const newRow = [...row];
+         newRow[phoneColIndex] = validation.formattedNumber || validation.phoneNumber; 
+         
+         validRowsToAppend.push(newRow);
+         existingPhones.add(validation.phoneNumber);
       } else {
-        console.log(`Duplicate found: ${rawPhone}`);
+          console.log(`Duplicate found: ${rawPhone}`);
       }
     } else {
-      console.log(`Invalid number: ${rawPhone}`);
+        console.log(`Invalid number: ${rawPhone}`);
     }
   }
 
@@ -113,42 +110,13 @@ async function processSheet(type: "B2B" | "B2C") {
   }
 
   const sheetId = await getSheetId(unclean, "Sheet1");
-
-  if (sheetId !== null) {
-    await deleteRows(unclean, sheetId, 1, 1 + rowsToProcess.length);
-    console.log(`Deleted ${rowsToProcess.length} processed rows from ${type} Unclean.`);
+  
+  if (sheetId !== null) { 
+      await deleteRows(unclean, sheetId, 1, 1 + rowsToProcess.length);
+      console.log(`Deleted ${rowsToProcess.length} processed rows from ${type} Unclean.`);
   } else {
-    console.error(`Could not find Sheet1 GID for ${type} Unclean. Cannot delete rows.`);
+      console.error(`Could not find Sheet1 GID for ${type} Unclean. Cannot delete rows.`);
   }
-}
-
-async function ensureCleanedHeader(
-  uncleanSpreadsheetId: string,
-  cleanedSpreadsheetId: string
-) {
-  const cleanedHeader = (await getSheetData(cleanedSpreadsheetId, "Sheet1!A1:Z1"))?.[0];
-
-  const isHeaderEmpty =
-    !cleanedHeader || cleanedHeader.every(cell => !cell || String(cell).trim() === "");
-
-  if (!isHeaderEmpty) {
-    return;
-  }
-
-  const uncleanHeader = (await getSheetData(uncleanSpreadsheetId, "Sheet1!A1:Z1"))?.[0];
-
-  if (!uncleanHeader || uncleanHeader.length === 0) {
-    console.log("Unclean sheet has no header to copy.");
-    return;
-  }
-
-  await appendToSheet({
-    spreadsheetId: cleanedSpreadsheetId,
-    range: "Sheet1!A1",
-    values: [uncleanHeader],
-  });
-
-  console.log("Header copied from Unclean to Cleaned sheet.");
 }
 
 export async function runDataCleaningJob() {
