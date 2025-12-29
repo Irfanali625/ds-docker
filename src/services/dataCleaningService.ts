@@ -78,6 +78,8 @@ async function processSingleSheet(
     return;
   }
 
+  await ensureCleanedHeaders(cleaned, uncleanHeaders);
+
   /* -------- Existing cleaned phones -------- */
 
   const cleanedHeaders = (
@@ -135,7 +137,7 @@ async function processSingleSheet(
       }
     }
 
-    await sleep(2000);
+    await sleep(3000);
   }
 
 
@@ -191,3 +193,28 @@ export async function runDataCleaningJob() {
     console.error("❌ Data cleaning job failed:", error);
   }
 }
+
+
+async function ensureCleanedHeaders(
+  cleanedSheetId: string,
+  uncleanHeaders: string[]
+) {
+  const cleanedHeaderRow = (
+    await getSheetData(cleanedSheetId, "Sheet1!A1:Z1")
+  )[0];
+
+  const isEmpty =
+    !cleanedHeaderRow ||
+    cleanedHeaderRow.length === 0 ||
+    cleanedHeaderRow.every((c) => !c);
+
+  if (isEmpty) {
+    console.log("📌 Cleaned sheet empty — adding headers");
+    await appendToSheet({
+      spreadsheetId: cleanedSheetId,
+      range: "Sheet1!A1",
+      values: [uncleanHeaders],
+    });
+  }
+}
+
