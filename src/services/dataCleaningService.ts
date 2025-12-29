@@ -113,28 +113,42 @@ async function processSingleSheet(
 
   const validRowsToAppend: any[][] = [];
 
+  let processedRowCount = 0; // 👈 track rows safe to delete
+
   for (const row of rowsToProcess) {
     const rawPhone = row[phoneColIndex];
+
+    // ❌ Empty phone → skip & DO NOT delete
     if (!rawPhone) continue;
 
     try {
       const validation = await validatePhoneNumber(rawPhone);
 
-      if (validation.isValid) {
-        if (!existingPhones.has(validation.phoneNumber)) {
-          const newRow = [...row];
-          newRow[phoneColIndex] =
-            validation.formattedNumber || validation.phoneNumber;
-
-          validRowsToAppend.push(newRow);
-          existingPhones.add(validation.phoneNumber);
-        }
+      if (!validation.isValid) {
+        console.log(`❌ Invalid phone: ${rawPhone}`);
+        continue; // ❌ invalid → DO NOT delete
       }
+
+      // ✅ Valid phone → safe to delete later
+      processedRowCount++;
+
+      if (!existingPhones.has(validation.phoneNumber)) {
+        const newRow = [...row];
+        newRow[phoneColIndex] =
+          validation.formattedNumber || validation.phoneNumber;
+
+        validRowsToAppend.push(newRow);
+        existingPhones.add(validation.phoneNumber);
+      }
+
     } catch (err: any) {
       if (err?.message?.toLowerCase().includes("rate limit")) {
-        console.log("⏸ Twilio rate limit hit — pausing processing");
-        break;
+        console.log("⏸ Twilio rate limit hit — stopping batch");
+        break; // ⏸ stop processing
       }
+
+      console.log("❌ Validation error:", err.message);
+      continue; // unknown error → do NOT delete
     }
 
     await sleep(3000);
