@@ -4,6 +4,7 @@ import {
   deleteRows,
   getSheetMetadata,
 } from "../lib/googleSheets";
+import { sleep } from "../utils/sleep";
 import { validatePhoneNumber } from "./phoneValidationService";
 
 const CONFIG = {
@@ -114,19 +115,29 @@ async function processSingleSheet(
     const rawPhone = row[phoneColIndex];
     if (!rawPhone) continue;
 
-    const validation = await validatePhoneNumber(rawPhone);
+    try {
+      const validation = await validatePhoneNumber(rawPhone);
 
-    if (!validation.isValid) continue;
+      if (validation.isValid) {
+        if (!existingPhones.has(validation.phoneNumber)) {
+          const newRow = [...row];
+          newRow[phoneColIndex] =
+            validation.formattedNumber || validation.phoneNumber;
 
-    if (existingPhones.has(validation.phoneNumber)) continue;
+          validRowsToAppend.push(newRow);
+          existingPhones.add(validation.phoneNumber);
+        }
+      }
+    } catch (err: any) {
+      if (err?.message?.toLowerCase().includes("rate limit")) {
+        console.log("⏸ Twilio rate limit hit — pausing processing");
+        break;
+      }
+    }
 
-    const newRow = [...row];
-    newRow[phoneColIndex] =
-      validation.formattedNumber || validation.phoneNumber;
-
-    validRowsToAppend.push(newRow);
-    existingPhones.add(validation.phoneNumber);
+    await sleep(2000);
   }
+
 
   /* -------- Append -------- */
 
