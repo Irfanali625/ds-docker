@@ -84,7 +84,7 @@ async function startServer() {
   }
 }
 
-cron.schedule('*/15 * * * *', () => {
+cron.schedule('0 * * * *', () => {
   console.log('Running scheduled data cleaning job...');
   runDataCleaningJob();
 });
