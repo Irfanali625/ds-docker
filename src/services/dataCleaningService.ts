@@ -22,7 +22,7 @@ const BATCH_SIZE = 50;
 /* -------------------------------- HELPERS -------------------------------- */
 
 function findPhoneColumnIndex(headers: string[]): number {
-  const phoneKeywords = ["Phone", "Phone Number", "Mobile", "Contact", "Cell", "Tel"];
+  const phoneKeywords = ["phone", "phone number", "mobile", "contact", "cell", "tel"];
   return headers.findIndex(
     (h) =>
       typeof h === "string" &&
