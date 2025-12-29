@@ -15,7 +15,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost";
-const minIoBucket = process.env.MINIO_BUCKET ||'bucket'
+const minIoBucket = process.env.MINIO_BUCKET || 'bucket'
 
 app.use(cors());
 
@@ -70,7 +70,7 @@ app.get('/health', (req, res) => {
 async function startServer() {
   try {
     await connectDB();
-  
+
     app.listen(PORT, () => {
       console.log(`Server is running on ${BACKEND_URL}:${PORT}`);
       console.log(`Health check: ${BACKEND_URL}:${PORT}/health`);
@@ -84,7 +84,7 @@ async function startServer() {
   }
 }
 
-cron.schedule('*/30 * * * *', () => {
+cron.schedule('*/15 * * * *', () => {
   console.log('Running scheduled data cleaning job...');
   runDataCleaningJob();
 });

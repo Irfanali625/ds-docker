@@ -19,86 +19,116 @@ const CONFIG = {
 
 const BATCH_SIZE = 50;
 
+/* -------------------------------- HELPERS -------------------------------- */
+
 function findPhoneColumnIndex(headers: string[]): number {
-  const phoneKeywords = ["phone", "mobile", 'Phone', 'Phone Number', 'Contact', 'Cell', 'Tel'];
-  const index = headers.findIndex((h) =>
-    phoneKeywords.some((keyword) => h.toLowerCase().includes(keyword))
+  const phoneKeywords = ["Phone", "Phone Number", "Mobile", "Contact", "Cell", "Tel"];
+  return headers.findIndex(
+    (h) =>
+      typeof h === "string" &&
+      phoneKeywords.some((k) => h.toLowerCase().includes(k))
   );
-  return index !== -1 ? index : -1
 }
 
-async function getSheetId(spreadsheetId: string, title: string): Promise<number | null> {
-    const metadata = await getSheetMetadata(spreadsheetId);
-    const sheet = metadata.sheets?.find((s: any) => s.properties.title === title);
-    return sheet?.properties?.sheetId || null;
+async function getSheetId(
+  spreadsheetId: string,
+  title: string
+): Promise<number | null> {
+  const metadata = await getSheetMetadata(spreadsheetId);
+  const sheet = metadata.sheets?.find(
+    (s: any) => s.properties?.title === title
+  );
+  return sheet?.properties?.sheetId ?? null;
 }
 
-async function processSheet(type: "B2B" | "B2C") {
+async function getAllSheetNames(spreadsheetId: string): Promise<string[]> {
+  const metadata = await getSheetMetadata(spreadsheetId);
+  return (
+    metadata.sheets
+      ?.map((s) => s.properties?.title)
+      .filter(Boolean) as string[]
+  ) || [];
+}
+
+/* -------------------------- CORE PER-SHEET LOGIC -------------------------- */
+
+async function processSingleSheet(
+  type: "B2B" | "B2C",
+  sheetName: string
+) {
   const { unclean, cleaned } = CONFIG[type];
-  console.log(`Starting data cleaning for ${type}...`);
 
-  const uncleanHeaders = (await getSheetData(unclean, "Sheet1!A1:Z1"))[0];
-  if (!uncleanHeaders) {
-    console.log(`No headers found for ${type} Unclean sheet.`);
+  console.log(`➡ Processing ${type} → ${sheetName}`);
+
+  /* -------- Headers -------- */
+
+  const uncleanHeaders = (
+    await getSheetData(unclean, `${sheetName}!A1:Z1`)
+  )[0];
+
+  if (!uncleanHeaders || uncleanHeaders.length === 0) {
+    console.log(`⚠ No headers in ${sheetName}, skipping`);
     return;
   }
 
   const phoneColIndex = findPhoneColumnIndex(uncleanHeaders);
-   if (phoneColIndex === -1) {
-    console.log(`Could not find a 'Phone' column in ${type} headers:`, uncleanHeaders);
+  if (phoneColIndex === -1) {
+    console.log(`⚠ No phone column in ${sheetName}, skipping`);
     return;
   }
-  console.log(`Found phone column at index ${phoneColIndex}: ${uncleanHeaders[phoneColIndex]}`);
+
+  /* -------- Existing cleaned phones -------- */
+
+  const cleanedHeaders = (
+    await getSheetData(cleaned, "Sheet1!A1:Z1")
+  )[0];
+
+  const cleanedPhoneColIndex =
+    findPhoneColumnIndex(cleanedHeaders || uncleanHeaders);
 
   const cleanedData = await getSheetData(cleaned, "Sheet1!A2:Z");
   const existingPhones = new Set<string>();
 
-  const cleanedHeaders = (await getSheetData(cleaned, "Sheet1!A1:Z1"))[0];
-  const cleanedPhoneColIndex = findPhoneColumnIndex(cleanedHeaders || uncleanHeaders);
-
   cleanedData.forEach((row) => {
-    if (row[cleanedPhoneColIndex]) {
-       const p = String(row[cleanedPhoneColIndex]).replace(/\D/g, "");
-       if(p) existingPhones.add(p);
-    }
+    const p = row[cleanedPhoneColIndex];
+    if (p) existingPhones.add(String(p).replace(/\D/g, ""));
   });
 
-  console.log(`Found ${existingPhones.size} existing unique records in ${type} Cleaned sheet.`);
+  /* -------- Fetch batch -------- */
 
-  const range = `Sheet1!A2:Z${BATCH_SIZE + 1}`;
+  const range = `${sheetName}!A2:Z${BATCH_SIZE + 1}`;
   const rowsToProcess = await getSheetData(unclean, range);
 
   if (!rowsToProcess || rowsToProcess.length === 0) {
-    console.log(`No more data to process in ${type} Unclean sheet.`);
+    console.log(`ℹ No data in ${sheetName}`);
     return;
   }
 
-  console.log(`Processing ${rowsToProcess.length} rows from ${type}...`);
+  console.log(`   Processing ${rowsToProcess.length} rows`);
+
+  /* -------- Validate & dedupe -------- */
 
   const validRowsToAppend: any[][] = [];
-  
+
   for (const row of rowsToProcess) {
     const rawPhone = row[phoneColIndex];
-    if (!rawPhone) {
-        continue;
-    }
+    if (!rawPhone) continue;
 
     const validation = await validatePhoneNumber(rawPhone);
 
-    if (validation.isValid) {
-      if (!existingPhones.has(validation.phoneNumber)) {
-         const newRow = [...row];
-         newRow[phoneColIndex] = validation.formattedNumber || validation.phoneNumber; 
-         
-         validRowsToAppend.push(newRow);
-         existingPhones.add(validation.phoneNumber);
-      } else {
-          console.log(`Duplicate found: ${rawPhone}`);
-      }
-    } else {
-        console.log(`Invalid number: ${rawPhone}`);
-    }
+    if (!validation.isValid) continue;
+
+    if (existingPhones.has(validation.phoneNumber)) continue;
+
+    const newRow = [...row];
+    newRow[phoneColIndex] =
+      validation.formattedNumber || validation.phoneNumber;
+
+    validRowsToAppend.push(newRow);
+    existingPhones.add(validation.phoneNumber);
   }
+
+  /* -------- Append -------- */
 
   if (validRowsToAppend.length > 0) {
     await appendToSheet({
@@ -106,16 +136,38 @@ async function processSheet(type: "B2B" | "B2C") {
       range: "Sheet1!A:A",
       values: validRowsToAppend,
     });
-    console.log(`Appended ${validRowsToAppend.length} valid rows to ${type} Cleaned.`);
+
+    console.log(`   ✅ Appended ${validRowsToAppend.length} rows`);
   }
 
-  const sheetId = await getSheetId(unclean, "Sheet1");
-  
-  if (sheetId !== null) { 
-      await deleteRows(unclean, sheetId, 1, 1 + rowsToProcess.length);
-      console.log(`Deleted ${rowsToProcess.length} processed rows from ${type} Unclean.`);
-  } else {
-      console.error(`Could not find Sheet1 GID for ${type} Unclean. Cannot delete rows.`);
+  /* -------- Delete processed rows -------- */
+
+  const sheetId = await getSheetId(unclean, sheetName);
+  if (sheetId !== null) {
+    await deleteRows(unclean, sheetId, 1, 1 + rowsToProcess.length);
+    console.log(`   🗑 Deleted processed rows`);
+  }
+}
+
+/* ------------------------------ ENTRY POINT ------------------------------- */
+
+async function processSheet(type: "B2B" | "B2C") {
+  console.log(`Starting data cleaning for ${type}...`);
+
+  if (type === "B2B") {
+    await processSingleSheet("B2B", "Sheet1");
+    return;
+  }
+
+  // B2C → process ALL sheets
+  const sheetNames = await getAllSheetNames(CONFIG.B2C.unclean);
+
+  for (const sheetName of sheetNames) {
+    try {
+      await processSingleSheet("B2C", sheetName);
+    } catch (err) {
+      console.error(`❌ Error processing ${sheetName}`, err);
+    }
   }
 }
 
@@ -123,8 +175,8 @@ export async function runDataCleaningJob() {
   try {
     await processSheet("B2B");
     await processSheet("B2C");
-    console.log("Data cleaning job completed.");
+    console.log("✅ Data cleaning job completed.");
   } catch (error) {
-    console.error("Error in data cleaning job:", error);
+    console.error("❌ Data cleaning job failed:", error);
   }
 }
