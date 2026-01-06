@@ -23,7 +23,14 @@ const BATCH_SIZE = 50;
 /* -------------------------------- HELPERS -------------------------------- */
 
 function findPhoneColumnIndex(headers: string[]): number {
-  const phoneKeywords = ["phone", "phone number", "mobile", "contact", "cell", "tel"];
+  const phoneKeywords = [
+    "phone",
+    "phone number",
+    "mobile",
+    "contact",
+    "cell",
+    "tel",
+  ];
   return headers.findIndex(
     (h) =>
       typeof h === "string" &&
@@ -45,27 +52,22 @@ async function getSheetId(
 async function getAllSheetNames(spreadsheetId: string): Promise<string[]> {
   const metadata = await getSheetMetadata(spreadsheetId);
   return (
-    metadata.sheets
+    (metadata.sheets
       ?.map((s) => s.properties?.title)
-      .filter(Boolean) as string[]
-  ) || [];
+      .filter(Boolean) as string[]) || []
+  );
 }
 
 /* -------------------------- CORE PER-SHEET LOGIC -------------------------- */
 
-async function processSingleSheet(
-  type: "B2B" | "B2C",
-  sheetName: string
-) {
+async function processSingleSheet(type: "B2B" | "B2C", sheetName: string) {
   const { unclean, cleaned } = CONFIG[type];
 
   console.log(`➡ Processing ${type} → ${sheetName}`);
 
   /* -------- Headers -------- */
 
-  const uncleanHeaders = (
-    await getSheetData(unclean, `${sheetName}!A1:Z1`)
-  )[0];
+  const uncleanHeaders = (await getSheetData(unclean, `${sheetName}!A1:Z1`))[0];
 
   if (!uncleanHeaders || uncleanHeaders.length === 0) {
     console.log(`⚠ No headers in ${sheetName}, skipping`);
@@ -82,12 +84,11 @@ async function processSingleSheet(
 
   /* -------- Existing cleaned phones -------- */
 
-  const cleanedHeaders = (
-    await getSheetData(cleaned, "Sheet1!A1:Z1")
-  )[0];
+  const cleanedHeaders = (await getSheetData(cleaned, "Sheet1!A1:Z1"))[0];
 
-  const cleanedPhoneColIndex =
-    findPhoneColumnIndex(cleanedHeaders || uncleanHeaders);
+  const cleanedPhoneColIndex = findPhoneColumnIndex(
+    cleanedHeaders || uncleanHeaders
+  );
 
   const cleanedData = await getSheetData(cleaned, "Sheet1!A2:Z");
   const existingPhones = new Set<string>();
@@ -140,7 +141,6 @@ async function processSingleSheet(
         validRowsToAppend.push(newRow);
         existingPhones.add(validation.phoneNumber);
       }
-
     } catch (err: any) {
       if (err?.message?.toLowerCase().includes("rate limit")) {
         console.log("⏸ Twilio rate limit hit — stopping batch");
@@ -153,7 +153,6 @@ async function processSingleSheet(
 
     await sleep(3000);
   }
-
 
   /* -------- Append -------- */
 
@@ -181,33 +180,16 @@ async function processSingleSheet(
 async function processSheet(type: "B2B" | "B2C") {
   console.log(`Starting data cleaning for ${type}...`);
 
-  if (type === "B2B") {
-    await processSingleSheet("B2B", "Sheet1");
-    return;
-  }
-
-  // B2C → process ALL sheets
-  const sheetNames = await getAllSheetNames(CONFIG.B2C.unclean);
+  const sheetNames = await getAllSheetNames(CONFIG[type].unclean);
 
   for (const sheetName of sheetNames) {
     try {
-      await processSingleSheet("B2C", sheetName);
+      await processSingleSheet(type, sheetName);
     } catch (err) {
       console.error(`❌ Error processing ${sheetName}`, err);
     }
   }
 }
-
-export async function runDataCleaningJob() {
-  try {
-    await processSheet("B2B");
-    await processSheet("B2C");
-    console.log("✅ Data cleaning job completed.");
-  } catch (error) {
-    console.error("❌ Data cleaning job failed:", error);
-  }
-}
-
 
 async function ensureCleanedHeaders(
   cleanedSheetId: string,
@@ -232,3 +214,22 @@ async function ensureCleanedHeaders(
   }
 }
 
+export async function runB2BCleaningJob() {
+  try {
+    console.log("🚀 Starting B2B cleaning job...");
+    await processSheet("B2B");
+    console.log("✅ B2B cleaning job completed.");
+  } catch (error) {
+    console.error("❌ B2B cleaning job failed:", error);
+  }
+}
+
+export async function runB2CCleaningJob() {
+  try {
+    console.log("🚀 Starting B2C cleaning job...");
+    await processSheet("B2C");
+    console.log("✅ B2C cleaning job completed.");
+  } catch (error) {
+    console.error("❌ B2C cleaning job failed:", error);
+  }
+}

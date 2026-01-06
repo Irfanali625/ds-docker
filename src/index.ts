@@ -8,7 +8,7 @@ import webhookRoutes from './routes/webhookRoutes';
 import { connectDB } from './database/db';
 import { getFile } from './lib/minio';
 import cron from 'node-cron';
-import { runDataCleaningJob } from './services/dataCleaningService';
+import { runB2BCleaningJob, runB2CCleaningJob } from './services/dataCleaningService';
 
 dotenv.config();
 
@@ -84,9 +84,24 @@ async function startServer() {
   }
 }
 
-cron.schedule('0 * * * *', () => {
-  console.log('Running scheduled data cleaning job...');
-  runDataCleaningJob();
+
+/**
+ * 🟦 B2B – every 6 hours
+ * Runs at: 00:00, 06:00, 12:00, 18:00
+ */
+cron.schedule("0 */6 * * *", async () => {
+  console.log("⏰ Cron: B2B job started");
+  await runB2BCleaningJob();
 });
+
+/**
+ * 🟩 B2C – every 6 hours, 3-hour offset
+ * Runs at: 03:00, 09:00, 15:00, 21:00
+ */
+cron.schedule("0 3-23/6 * * *", async () => {
+  console.log("⏰ Cron: B2C job started");
+  await runB2CCleaningJob();
+});
+
 
 startServer();
