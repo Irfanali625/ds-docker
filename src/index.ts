@@ -1,41 +1,44 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import authRoutes from './routes/authRoutes';
-import phoneValidationRoutes from './routes/phoneValidationRoutes';
-import subscriptionRoutes from './routes/subscriptionRoutes';
-import webhookRoutes from './routes/webhookRoutes';
-import { connectDB } from './database/db';
-import { getFile } from './lib/minio';
-import cron from 'node-cron';
-import { runB2BCleaningJob, runB2CCleaningJob } from './services/dataCleaningService';
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import authRoutes from "./routes/authRoutes";
+import phoneValidationRoutes from "./routes/phoneValidationRoutes";
+import subscriptionRoutes from "./routes/subscriptionRoutes";
+import webhookRoutes from "./routes/webhookRoutes";
+import { connectDB } from "./database/db";
+import { getFile } from "./lib/minio";
+import cron from "node-cron";
+import {
+  runB2BCleaningJob,
+  runB2CCleaningJob,
+} from "./services/dataCleaningService";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost";
-const minIoBucket = process.env.MINIO_BUCKET || 'bucket'
+const minIoBucket = process.env.MINIO_BUCKET || "bucket";
 
 app.use(cors());
 
-app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
-app.use('/webhooks/square', express.raw({ type: 'application/json' }));
+app.use("/webhooks/stripe", express.raw({ type: "application/json" }));
+app.use("/webhooks/square", express.raw({ type: "application/json" }));
 
 app.use((req, res, next) => {
-  const rawPaths = ['/webhooks/stripe', '/webhooks/square'];
+  const rawPaths = ["/webhooks/stripe", "/webhooks/square"];
   if (rawPaths.some((path) => req.originalUrl.startsWith(path))) {
     return next();
   }
-  return express.json({ limit: '50mb' })(req, res, next);
+  return express.json({ limit: "50mb" })(req, res, next);
 });
 
 app.use((req, res, next) => {
-  const rawPaths = ['/webhooks/stripe', '/webhooks/square'];
+  const rawPaths = ["/webhooks/stripe", "/webhooks/square"];
   if (rawPaths.some((path) => req.originalUrl.startsWith(path))) {
     return next();
   }
-  return express.urlencoded({ extended: true, limit: '50mb' })(req, res, next);
+  return express.urlencoded({ extended: true, limit: "50mb" })(req, res, next);
 });
 
 app.get(`/${minIoBucket}/*`, async (req, res) => {
@@ -58,13 +61,13 @@ app.get(`/${minIoBucket}/*`, async (req, res) => {
 
 app.use("/uploads", express.static("public/uploads"));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/phone-validation', phoneValidationRoutes);
-app.use('/api/subscription', subscriptionRoutes);
-app.use('/webhooks', webhookRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/phone-validation", phoneValidationRoutes);
+app.use("/api/subscription", subscriptionRoutes);
+app.use("/webhooks", webhookRoutes);
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Data Scraping API is running' });
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", message: "Data Scraping API is running" });
 });
 
 async function startServer() {
@@ -76,32 +79,24 @@ async function startServer() {
       console.log(`Health check: ${BACKEND_URL}:${PORT}/health`);
     });
   } catch (error: any) {
-    console.error('Failed to start server:', error);
-    if (error.message?.includes('Authentication')) {
-      console.error('\nPlease fix your MongoDB credentials in the .env file and try again.');
+    console.error("Failed to start server:", error);
+    if (error.message?.includes("Authentication")) {
+      console.error(
+        "\nPlease fix your MongoDB credentials in the .env file and try again."
+      );
     }
     process.exit(1);
   }
 }
 
-
-/**
- * 🟦 B2B – every 6 hours
- * Runs at: 00:00, 06:00, 12:00, 18:00
- */
+// B2B
 cron.schedule("0 */6 * * *", async () => {
-  console.log("⏰ Cron: B2B job started");
   await runB2BCleaningJob();
 });
 
-/**
- * 🟩 B2C – every 6 hours, 3-hour offset
- * Runs at: 03:00, 09:00, 15:00, 21:00
- */
+// B2C (3-hour offset)
 cron.schedule("0 3-23/6 * * *", async () => {
-  console.log("⏰ Cron: B2C job started");
   await runB2CCleaningJob();
 });
-
 
 startServer();
