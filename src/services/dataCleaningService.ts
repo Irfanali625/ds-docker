@@ -119,11 +119,17 @@ async function processSingleSheet(type: "B2B" | "B2C", sheetName: string) {
   for (const row of rowsToProcess) {
     const rawPhone = row[phoneColIndex];
 
+
+    const phone = rawPhone
+      ? rawPhone.toString().replace(/[^0-9+]/g, "")
+      : "";
+
+
     // ❌ Empty phone → skip & DO NOT delete
     if (!rawPhone) continue;
 
     try {
-      const validation = await validatePhoneNumber(rawPhone);
+      const validation = await validatePhoneNumber(phone);
 
       if (!validation.isValid) {
         console.log(`❌ Invalid phone: ${rawPhone}`);
