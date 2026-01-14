@@ -9,8 +9,8 @@ import { validatePhoneNumber } from "./phoneValidationService";
 
 const CONFIG = {
   B2B: {
-    unclean: "1a9pOvHfzbUw11GKLwuykfSBDc4AMWfvdgYc3VAm7-OY",
-    cleaned: "1Fn1PiTEPft_FXvVjw1K9uQ-pK8khMiwk-nGP9Y3cnT8",
+    unclean: "1Fn1PiTEPft_FXvVjw1K9uQ-pK8khMiwk-nGP9Y3cnT8",
+    cleaned: "1a9pOvHfzbUw11GKLwuykfSBDc4AMWfvdgYc3VAm7-OY",
   },
   B2C: {
     unclean: "14rDA6fSGMc89Bla3vZj8zF6B-IjbcgLoCnaJqBT600A",
@@ -69,6 +69,7 @@ async function processSingleSheet(type: "B2B" | "B2C", sheetName: string) {
 
   const uncleanHeaders = (await getSheetData(unclean, `${sheetName}!A1:Z1`))[0];
 
+
   if (!uncleanHeaders || uncleanHeaders.length === 0) {
     console.log(`⚠ No headers in ${sheetName}, skipping`);
     return;
@@ -124,6 +125,8 @@ async function processSingleSheet(type: "B2B" | "B2C", sheetName: string) {
       ? rawPhone.toString().replace(/[^0-9+]/g, "")
       : "";
 
+    console.log(phone);
+
 
     // ❌ Empty phone → skip & DO NOT delete
     if (!rawPhone) continue;
@@ -157,7 +160,7 @@ async function processSingleSheet(type: "B2B" | "B2C", sheetName: string) {
       continue; // unknown error → do NOT delete
     }
 
-    await sleep(3000);
+    await sleep(5000);
   }
 
   /* -------- Append -------- */

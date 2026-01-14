@@ -8,12 +8,16 @@ const auth = new google.auth.GoogleAuth({
 
 export async function getSheetData(spreadsheetId: string, range: string) {
   const sheets = google.sheets({ version: "v4", auth });
+
+
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range,
   });
-  return response.data.values || [];
+
+  return response.data.values ?? [];
 }
+
 
 export async function appendToSheet({
   spreadsheetId,
@@ -43,7 +47,7 @@ export async function appendToSheet({
 
 export async function deleteRows(spreadsheetId: string, sheetId: number, startIndex: number, endIndex: number) {
   const sheets = google.sheets({ version: "v4", auth });
-  
+
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     requestBody: {
