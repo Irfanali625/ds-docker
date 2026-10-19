@@ -85,13 +85,17 @@ async function processSingleSheet(type: "B2B" | "B2C", sheetName: string) {
 
   /* -------- Existing cleaned phones -------- */
 
-  const cleanedHeaders = (await getSheetData(cleaned, "Sheet1!A1:Z1"))[0];
+  // Resolve the actual first tab name of the cleaned sheet (not assumed "Sheet1")
+  const cleanedSheetNames = await getAllSheetNames(cleaned);
+  const cleanedSheetName = cleanedSheetNames[0] || "Sheet1";
+
+  const cleanedHeaders = (await getSheetData(cleaned, `${cleanedSheetName}!A1:Z1`))[0];
 
   const cleanedPhoneColIndex = findPhoneColumnIndex(
     cleanedHeaders || uncleanHeaders
   );
 
-  const cleanedData = await getSheetData(cleaned, "Sheet1!A2:Z");
+  const cleanedData = await getSheetData(cleaned, `${cleanedSheetName}!A2:Z`);
   const existingPhones = new Set<string>();
 
   cleanedData.forEach((row) => {
@@ -204,8 +208,12 @@ async function ensureCleanedHeaders(
   cleanedSheetId: string,
   uncleanHeaders: string[]
 ) {
+  // Resolve actual first tab name dynamically
+  const sheetNames = await getAllSheetNames(cleanedSheetId);
+  const tabName = sheetNames[0] || "Sheet1";
+
   const cleanedHeaderRow = (
-    await getSheetData(cleanedSheetId, "Sheet1!A1:Z1")
+    await getSheetData(cleanedSheetId, `${tabName}!A1:Z1`)
   )[0];
 
   const isEmpty =
@@ -217,7 +225,7 @@ async function ensureCleanedHeaders(
     console.log("📌 Cleaned sheet empty — adding headers");
     await appendToSheet({
       spreadsheetId: cleanedSheetId,
-      range: "Sheet1!A1",
+      range: `${tabName}!A1`,
       values: [uncleanHeaders],
     });
   }

@@ -66,9 +66,9 @@ export class PhoneValidationController {
         data: {
           result: minimal,
           downloadUrl: saved.publicPath,
-          minioUploaded: saved.minioUploaded,
-          ...(saved.minioError && {
-            minioWarning: `File saved locally but MinIO upload failed: ${saved.minioError}`,
+          seaweedfsUploaded: saved.seaweedfsUploaded,
+          ...(saved.seaweedfsError && {
+            seaweedfsWarning: `File saved locally but SeaweedFS upload failed: ${saved.seaweedfsError}`,
           }),
         },
       });
@@ -152,9 +152,9 @@ export class PhoneValidationController {
           processedAt: new Date().toISOString(),
         },
         downloadUrl: saved.publicPath,
-        minioUploaded: saved.minioUploaded,
-        ...(saved.minioError && {
-          minioWarning: `File saved locally but MinIO upload failed: ${saved.minioError}`,
+        seaweedfsUploaded: saved.seaweedfsUploaded,
+        ...(saved.seaweedfsError && {
+          seaweedfsWarning: `File saved locally but SeaweedFS upload failed: ${saved.seaweedfsError}`,
         }),
       });
     } catch (error: any) {
@@ -252,9 +252,9 @@ export class PhoneValidationController {
               processedAt: new Date().toISOString(),
             },
             downloadUrl: saved.publicPath,
-            minioUploaded: saved.minioUploaded,
-            ...(saved.minioError && {
-              minioWarning: `File saved locally but MinIO upload failed: ${saved.minioError}`,
+            seaweedfsUploaded: saved.seaweedfsUploaded,
+            ...(saved.seaweedfsError && {
+              seaweedfsWarning: `File saved locally but SeaweedFS upload failed: ${saved.seaweedfsError}`,
             }),
           });
         })

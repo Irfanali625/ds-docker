@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { uploadFileToMinIO } from "../lib/minio";
+import { uploadFileToSeaweedFS } from "../lib/seaweedfs";
 import { appendToSheet } from "../lib/googleSheets";
 
 interface SaveValidationParams {
@@ -14,8 +14,8 @@ interface SaveValidationParams {
 interface SaveValidationResult {
   fileName: string;
   publicPath: string;
-  minioUploaded: boolean;
-  minioError?: string;
+  seaweedfsUploaded: boolean;
+  seaweedfsError?: string;
 }
 
 export const SHEET_MAP: Record<string, string> = {
@@ -158,18 +158,18 @@ export async function saveValidationResults({
   const csvBuffer = Buffer.from(csvContent, "utf8");
   const publicPath = `csvs/${yearFull}/${month}/${fileName}`;
 
-  let minioUploaded = false;
-  let minioError: Error | null = null;
+  let seaweedfsUploaded = false;
+  let seaweedfsError: Error | null = null;
 
   try {
-    await uploadFileToMinIO(publicPath, csvBuffer);
-    minioUploaded = true;
+    await uploadFileToSeaweedFS(publicPath, csvBuffer);
+    seaweedfsUploaded = true;
   } catch (error) {
-    minioError = error instanceof Error ? error : new Error(String(error));
+    seaweedfsError = error instanceof Error ? error : new Error(String(error));
     console.error(
-      "Warning: Failed to upload file to MinIO (validation will continue):",
+      "Warning: Failed to upload file to SeaweedFS (validation will continue):",
       {
-        error: minioError.message,
+        error: seaweedfsError.message,
         filePath: publicPath,
         timestamp: new Date().toISOString(),
       }
@@ -179,7 +179,7 @@ export async function saveValidationResults({
   return {
     fileName,
     publicPath,
-    minioUploaded,
-    minioError: minioError?.message,
+    seaweedfsUploaded,
+    seaweedfsError: seaweedfsError?.message,
   };
 }

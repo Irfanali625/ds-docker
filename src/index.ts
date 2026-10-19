@@ -6,7 +6,7 @@ import phoneValidationRoutes from "./routes/phoneValidationRoutes";
 import subscriptionRoutes from "./routes/subscriptionRoutes";
 import webhookRoutes from "./routes/webhookRoutes";
 import { connectDB } from "./database/db";
-import { getFile } from "./lib/minio";
+import { getFile } from "./lib/seaweedfs";
 import cron from "node-cron";
 import {
   runB2BCleaningJob,
@@ -18,7 +18,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost";
-const minIoBucket = process.env.MINIO_BUCKET || "bucket";
+const seaweedfsBucket = process.env.SEAWEEDFS_BUCKET || "bucket";
 
 app.use(cors());
 
@@ -41,7 +41,7 @@ app.use((req, res, next) => {
   return express.urlencoded({ extended: true, limit: "50mb" })(req, res, next);
 });
 
-app.get(`/${minIoBucket}/*`, async (req, res) => {
+app.get(`/${seaweedfsBucket}/*`, async (req, res) => {
   try {
     const objectName = (req.params as any)[0];
     const fileStream = await getFile(objectName);
