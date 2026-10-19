@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongo:
     image: mongo:4.4
@@ -15,20 +13,49 @@ services:
     networks:
       - ds-network-prod
 
-  minio:
-    image: minio/minio
-    container_name: ds-minio
-    command: server /data --console-address ":9001"
+  seaweedfs:
+    image: chrislusf/seaweedfs
+    container_name: ds-seaweedfs
+    command: >
+      server
+      -dir=/data
+      -ip=seaweedfs
+      -ip.bind=0.0.0.0
+      -filer
+      -s3
+      -s3.port=8333
+      -s3.config=/etc/seaweedfs/s3.json
     restart: unless-stopped
     ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      - "9333:9333"
+      - "8080:8080"
+      - "8888:8888"
+      - "8333:8333"
     volumes:
-      - ./minio-data:/data
-    networks:  
+      - ./seaweedfs-data/data:/data
+      - ./seaweedfs-data/s3.json:/etc/seaweedfs/s3.json:ro
+    networks:
+      - ds-network-prod
+
+  seaweedfs-admin:
+    image: chrislusf/seaweedfs
+    container_name: ds-seaweedfs-admin
+    restart: unless-stopped
+    command: >
+      admin
+      -ip=0.0.0.0
+      -port=8334
+      -master=seaweedfs:9333
+      -dataDir=/data
+      -adminUser=${SEAWEEDFS_ADMIN_USER:-admin}
+      -adminPassword=${SEAWEEDFS_ADMIN_PASSWORD:-seaweedfs}
+    ports:
+      - "8334:8334"   # SeaweedFS Admin Web UI
+    volumes:
+      - ./seaweedfs-data/admin:/data
+    depends_on:
+      - seaweedfs
+    networks:
       - ds-network-prod
 
   backend:
@@ -40,11 +67,12 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ./ds-backend/.env 
+      - ./ds-backend/.env
     volumes:
       - ./ds-backend/uploads:/app/uploads
     depends_on:
       - mongo
+      - seaweedfs
     networks:
       - ds-network-prod
 

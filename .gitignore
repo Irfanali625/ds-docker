@@ -3,3 +3,4 @@ ds-frontend
 .env
 mongodb
 minio-data
+seaweedfs-data
