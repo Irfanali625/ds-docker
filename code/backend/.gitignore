@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+data/
+*.log
+public/uploads/
+src/services/json/google-service-account.json
