@@ -74,6 +74,7 @@ services:
       SEAWEEDFS_ENDPOINT: seaweedfs
     volumes:
       - ./code/backend/uploads:/app/uploads
+      - ./code/backend/src/services/json:/app/src/services/json:ro
     depends_on:
       - mongo
       - seaweedfs
