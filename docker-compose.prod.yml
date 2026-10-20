@@ -4,7 +4,7 @@ services:
     container_name: vnc-mongodb
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - ./mongodb:/data/db
     environment:
@@ -27,10 +27,10 @@ services:
       -s3.config=/etc/seaweedfs/s3.json
     restart: unless-stopped
     ports:
-      - "9333:9333"
-      - "8080:8080"
-      - "8888:8888"
-      - "8333:8333"
+      - "127.0.0.1:9333:9333"
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:8333:8333"
     volumes:
       - ./seaweedfs-data/data:/data
       - ./seaweedfs-data/s3.json:/etc/seaweedfs/s3.json:ro
@@ -50,7 +50,7 @@ services:
       -adminUser=${SEAWEEDFS_ADMIN_USER:-admin}
       -adminPassword=${SEAWEEDFS_ADMIN_PASSWORD:-seaweedfs}
     ports:
-      - "8334:8334"   # SeaweedFS Admin Web UI
+      - "127.0.0.1:8334:8334"   # SeaweedFS Admin Web UI
     volumes:
       - ./seaweedfs-data/admin:/data
     depends_on:
@@ -65,7 +65,7 @@ services:
     container_name: vnc-backend
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - ./.env
     environment:
@@ -91,7 +91,7 @@ services:
     container_name: vnc-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     env_file:
       - ./.env
     environment:
