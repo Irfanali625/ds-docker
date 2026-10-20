@@ -1,7 +1,7 @@
 services:
   mongo:
     image: mongo
-    container_name: ds-mongodb
+    container_name: vnc-mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
@@ -11,11 +11,11 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_DB_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_DB_PASSWORD}
     networks:
-      - ds-network
+      - vnc-network
 
   seaweedfs:
     image: chrislusf/seaweedfs
-    container_name: ds-seaweedfs
+    container_name: vnc-seaweedfs
     # weed server starts master + volume + filer + S3 gateway in one process
     command: >
       server
@@ -36,11 +36,11 @@ services:
       - ./seaweedfs-data/data:/data
       - ./seaweedfs-data/s3.json:/etc/seaweedfs/s3.json:ro
     networks:
-      - ds-network
+      - vnc-network
 
   seaweedfs-admin:
     image: chrislusf/seaweedfs
-    container_name: ds-seaweedfs-admin
+    container_name: vnc-seaweedfs-admin
     restart: unless-stopped
     command: >
       admin
@@ -57,13 +57,13 @@ services:
     depends_on:
       - seaweedfs
     networks:
-      - ds-network
+      - vnc-network
 
   backend:
     build:
       context: ./code/backend
       dockerfile: Dockerfile
-    container_name: ds-backend
+    container_name: vnc-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -79,7 +79,7 @@ services:
       - mongo
       - seaweedfs
     networks:
-      - ds-network
+      - vnc-network
 
   frontend:
     build:
@@ -88,7 +88,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_MINIO_BUCKET: ${NEXT_PUBLIC_MINIO_BUCKET}
-    container_name: ds-frontend
+    container_name: vnc-frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -99,8 +99,8 @@ services:
     depends_on:
       - backend
     networks:
-      - ds-network
+      - vnc-network
 
 networks:
-  ds-network:
+  vnc-network:
     driver: bridge
