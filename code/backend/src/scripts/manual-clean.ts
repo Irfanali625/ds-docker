@@ -1,7 +1,5 @@
-import dotenv from "dotenv";
+import "../config/env";
 import { connectDB } from "../database/db";
-
-dotenv.config();
 
 async function run() {
   console.log("Starting manual data cleaning job...");

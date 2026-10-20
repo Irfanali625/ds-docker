@@ -1,6 +1,6 @@
+import "./config/env";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes";
 import phoneValidationRoutes from "./routes/phoneValidationRoutes";
 import subscriptionRoutes from "./routes/subscriptionRoutes";
@@ -12,8 +12,6 @@ import {
   runB2BCleaningJob,
   runB2CCleaningJob,
 } from "./services/dataCleaningService";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;

@@ -1,8 +1,5 @@
 import twilio from "twilio";
-import dotenv from "dotenv";
 import { PhoneValidationResult } from "../types/phoneValidation";
-
-dotenv.config();
 
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;

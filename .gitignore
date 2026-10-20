@@ -1,6 +1,27 @@
-ds-backend
-ds-frontend
+# env (only the root .env is used)
 .env
-mongodb
-minio-data
-seaweedfs-data
+.env.*
+!.env.example
+
+# dependencies / build output
+node_modules/
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# local data volumes
+mongodb/
+seaweedfs-data/
+minio-data/
+code/backend/uploads/
+
+# secrets
+code/backend/src/services/json/google-service-account.json
+
+# misc
+.DS_Store
+*.log
+*.pem
+.vercel
