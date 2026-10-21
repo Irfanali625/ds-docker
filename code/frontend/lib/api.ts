@@ -1,236 +1,197 @@
 import cookies from "js-cookie";
 import { User } from "@/types";
+import { HistoryEntry, PhoneType, ValidationRun } from "@/types/phoneValidation";
+import {
+  SubscriptionStatusResponse,
+  Subscription,
+  Payment,
+} from "@/types/subscription";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const AUTH_COOKIE = "auth_token";
 
-console.log("API ULR", API_BASE_URL);
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public data: Record<string, any> = {}
+  ) {
+    super(message);
+  }
 
-function getAuthHeaders(): HeadersInit {
-  const token = cookies.get("auth_token");
-  return {
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
-  };
+  get requiresUpgrade(): boolean {
+    return !!this.data.requiresUpgrade;
+  }
 }
 
-export const api = {
-  async validatePhoneNumber(
-    phoneNumber: string,
-    phoneType: string
-  ): Promise<import("@/types/phoneValidation").PhoneValidationResult> {
-    const response = await fetch(
-      `${API_BASE_URL}/api/phone-validation/single`,
-      {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ phoneNumber, phoneType }),
-      }
-    );
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: "Failed to validate phone number" }));
-      const err: any = new Error(
-        error.error || error.message || "Failed to validate phone number"
-      );
-      err.response = response;
-      err.requiresUpgrade = error.requiresUpgrade || false;
-      err.limitType = error.limitType;
-      throw err;
-    }
-    return response.json();
-  },
+let unauthorizedHandler: (() => void) | null = null;
 
-  async validateBulkPhoneNumbers(
-    phoneNumbers: string[],
-    phoneType: string
-  ): Promise<import("@/types/phoneValidation").BulkValidationResult> {
-    const response = await fetch(`${API_BASE_URL}/api/phone-validation/bulk`, {
+/** Called whenever an authenticated request comes back 401 (expired or revoked session). */
+export function onUnauthorized(handler: () => void) {
+  unauthorizedHandler = handler;
+}
+
+interface RequestOptions {
+  method?: string;
+  body?: unknown;
+  auth?: boolean;
+  fallbackError?: string;
+}
+
+async function send(path: string, { method = "GET", body, auth = true }: RequestOptions) {
+  const headers: Record<string, string> = {};
+  const token = cookies.get(AUTH_COOKIE);
+  if (auth && token) headers.Authorization = `Bearer ${token}`;
+
+  let payload: BodyInit | undefined;
+  if (body instanceof FormData) {
+    payload = body;
+  } else if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+    payload = JSON.stringify(body);
+  }
+
+  try {
+    return await fetch(`${API_BASE_URL}${path}`, { method, headers, body: payload });
+  } catch {
+    throw new ApiError("Unable to reach the server. Check your connection and try again.", 0);
+  }
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { auth = true, fallbackError = "Something went wrong. Please try again." } = options;
+  const response = await send(path, options);
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    if (response.status === 401 && auth) unauthorizedHandler?.();
+    throw new ApiError(data.error || data.message || fallbackError, response.status, data);
+  }
+
+  return data as T;
+}
+
+function saveBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function fileNameFrom(response: Response, fallback: string) {
+  const header = response.headers.get("Content-Disposition") || "";
+  return header.match(/filename="?([^"]+)"?/)?.[1] || fallback;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    request<AuthResponse>("/api/auth/login", {
       method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ phoneNumbers, phoneType }),
-    });
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: "Failed to validate phone numbers" }));
-      const err: any = new Error(
-        error.error || error.message || "Failed to validate phone numbers"
-      );
-      err.response = response;
-      err.requiresUpgrade = error.requiresUpgrade || false;
-      err.limitType = error.limitType;
-      err.remainingFree = error.remainingFree;
-      throw err;
-    }
-    return response.json();
-  },
+      body: { email, password },
+      auth: false,
+      fallbackError: "Sign in failed",
+    }),
 
-  async validateCSV(file: File, phoneType: string): Promise<any> {
-    const formData = new FormData();
-    formData.append("csvFile", file);
-    formData.append("phoneType", phoneType)
-
-    const token = cookies.get("auth_token");
-    const response = await fetch(`${API_BASE_URL}/api/phone-validation/csv`, {
+  register: (name: string, email: string, password: string) =>
+    request<AuthResponse>("/api/auth/register", {
       method: "POST",
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: formData,
-    });
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: "Failed to validate CSV file" }));
-      const err: any = new Error(
-        error.error || error.message || "Failed to validate CSV file"
-      );
-      err.response = response;
-      err.requiresUpgrade = error.requiresUpgrade || false;
-      err.limitType = error.limitType;
-      err.remainingFree = error.remainingFree;
-      throw err;
-    }
-    return response.json();
-  },
+      body: { name, email, password },
+      auth: false,
+      fallbackError: "Could not create your account",
+    }),
 
-  async getHistory(): Promise<any[]> {
-    const response = await fetch(
-      `${API_BASE_URL}/api/phone-validation/history`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-    if (!response.ok) {
-      throw new Error(`Failed to fetch user history: ${response.statusText}`);
-    }
-    return response.json();
-  },
+  me: () => request<User>("/api/auth/me"),
 
-  async updateProfile(payload: {
+  updateProfile: (payload: {
     name: string;
     email: string;
-    oldPassword?: string | null;
-    newPassword?: string | null;
-    confirmPassword?: string | null;
-  }): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/api/auth/profile/update`, {
+    oldPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }) =>
+    request<{ message: string; token: string; user: User }>("/api/auth/profile/update", {
       method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
+      body: payload,
+      fallbackError: "Could not update your profile",
+    }),
+};
+
+export const validationApi = {
+  async single(phoneNumber: string, phoneType: PhoneType) {
+    const res = await request<{ data: ValidationRun }>("/api/phone-validation/single", {
+      method: "POST",
+      body: { phoneNumber, phoneType },
+      fallbackError: "Could not validate this number",
     });
-
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: "Failed to update profile" }));
-      const err: any = new Error(
-        error.error || error.message || "Failed to update profile"
-      );
-      err.response = response;
-      throw err;
-    }
-
-    return response.json();
+    return res.data;
   },
 
-  async me(): Promise<User> {
-    const token = cookies.get("auth_token");
-    if (!token) {
-      throw new Error("No auth token found");
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+  async bulk(phoneNumbers: string[], phoneType: PhoneType) {
+    const res = await request<{ data: ValidationRun }>("/api/phone-validation/bulk", {
+      method: "POST",
+      body: { phoneNumbers, phoneType },
+      fallbackError: "Could not validate these numbers",
     });
+    return res.data;
+  },
 
+  async csv(file: File, phoneType: PhoneType) {
+    const form = new FormData();
+    form.append("phoneType", phoneType);
+    form.append("csvFile", file);
+    const res = await request<{ data: ValidationRun }>("/api/phone-validation/csv", {
+      method: "POST",
+      body: form,
+      fallbackError: "Could not process this file",
+    });
+    return res.data;
+  },
+
+  history: () =>
+    request<HistoryEntry[]>("/api/phone-validation/history", {
+      fallbackError: "Could not load your history",
+    }),
+
+  /** Downloads a results file. Goes through fetch so the auth header is sent. */
+  async download(historyId: string) {
+    const response = await send(`/api/phone-validation/history/${historyId}/download`, {});
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || "Failed to fetch user");
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 401) unauthorizedHandler?.();
+      throw new ApiError(data.error || "Download failed", response.status, data);
     }
-
-    return response.json();
+    saveBlob(await response.blob(), fileNameFrom(response, "results.csv"));
   },
 };
 
 export const subscriptionApi = {
-  async getStatus(): Promise<
-    import("@/types/subscription").SubscriptionStatusResponse
-  > {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/subscription/status`, {
-        headers: getAuthHeaders(),
-      });
-      if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ error: "Failed to fetch subscription status" }));
-        const err: any = new Error(
-          error.error ||
-            error.message ||
-            `Failed to fetch subscription status (${response.status})`
-        );
-        err.status = response.status;
-        throw err;
-      }
-      return response.json();
-    } catch (err: any) {
-      if (err.name === "TypeError" && err.message.includes("fetch")) {
-        throw new Error(
-          "Network error: Unable to connect to the server. Please check if the backend is running."
-        );
-      }
-      throw err;
-    }
-  },
+  getStatus: () =>
+    request<SubscriptionStatusResponse>("/api/subscription/status", {
+      fallbackError: "Could not load subscription status",
+    }),
 
-  async createCheckout(payload: {
+  createCheckout: (payload: {
     provider: "stripe" | "square";
     successUrl: string;
     cancelUrl?: string;
-  }): Promise<{ provider: string; checkoutUrl: string; paymentId: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/subscription/checkout`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
+  }) =>
+    request<{ provider: string; checkoutUrl: string; paymentId: string }>(
+      "/api/subscription/checkout",
+      { method: "POST", body: payload, fallbackError: "Could not start checkout" }
+    ),
 
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ error: "Failed to create checkout session" }));
-      throw new Error(
-        error.error || error.message || "Failed to create checkout session"
-      );
-    }
-
-    return response.json();
-  },
-
-  async createSubscription(): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/api/subscription/create`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to create subscription");
-    }
-    return response.json();
-  },
-
-  async getHistory(): Promise<{ subscriptions: any[]; payments: any[] }> {
-    const response = await fetch(`${API_BASE_URL}/api/subscription/history`, {
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) {
-      throw new Error("Failed to fetch subscription history");
-    }
-    return response.json();
-  },
+  getHistory: () =>
+    request<{ subscriptions: Subscription[]; payments: Payment[] }>(
+      "/api/subscription/history",
+      { fallbackError: "Could not load billing history" }
+    ),
 };

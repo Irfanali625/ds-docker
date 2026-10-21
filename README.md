@@ -15,7 +15,7 @@ docker compose up -d --build
 
 Frontend http://localhost:3000 · API http://localhost:8000/health · SeaweedFS admin http://localhost:8334
 
-`NEXT_PUBLIC_*` values are baked in at build time, so rebuild the frontend after changing them.
+`docker-compose.yml` is the development setup: it mounts `code/backend/src` and `code/frontend` into the containers and runs the dev servers, so code changes reload on save. Rebuild (`--build`) only after changing `package.json`. `docker-compose.prod.yml` builds production images with no mounts.
 
 ## Run without Docker
 

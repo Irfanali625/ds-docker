@@ -1,5 +1,9 @@
 import twilio from "twilio";
-import { PhoneValidationResult } from "../types/phoneValidation";
+import {
+  PhoneValidationResult,
+  PhoneValidationStatus,
+  ValidationProvider,
+} from "../types/phoneValidation";
 
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -9,101 +13,106 @@ const twilioClient =
     ? twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     : null;
 
-function normalizePhoneNumber(phone: string): string {
-  let cleaned = phone.replace(/[\s\-\(\)\.]/g, "");
-
-  if (cleaned.startsWith("+")) {
-    return cleaned.substring(1);
-  }
-
-  cleaned = cleaned.replace(/\D/g, "");
-
-  if (cleaned.startsWith("0")) {
-    cleaned = cleaned.substring(1);
-  }
-
-  if (cleaned.length === 10 && !cleaned.startsWith("1")) {
-    return `1${cleaned}`;
-  }
-
-  return cleaned;
+if (!twilioClient) {
+  console.warn(
+    "TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN not set. Phone lookups will return UNKNOWN."
+  );
 }
 
-async function twilioLookup(
-  phoneNumber: string
-): Promise<PhoneValidationResult | null> {
-  if (!twilioClient) {
-    return null;
+const BATCH_SIZE = 10;
+const BATCH_DELAY_MS = 500;
+
+/**
+ * Returns digits only (no leading +). Numbers without a country code that look
+ * like 10-digit NANP numbers are prefixed with 1.
+ */
+export function normalizePhoneNumber(phone: string): string {
+  const trimmed = String(phone ?? "").trim();
+  const hasPlus = trimmed.startsWith("+");
+  let digits = trimmed.replace(/\D/g, "");
+
+  if (hasPlus) return digits;
+
+  if (digits.startsWith("00")) return digits.substring(2);
+  if (digits.startsWith("0")) digits = digits.substring(1);
+
+  if (digits.length === 10 && !digits.startsWith("1")) {
+    return `1${digits}`;
   }
 
-  try {
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-
-    const phoneNumberWithPlus = normalizedPhone.startsWith("+")
-      ? normalizedPhone
-      : `+${normalizedPhone}`;
-    const phoneNumberObj: any = await twilioClient.lookups.v2
-      .phoneNumbers(phoneNumberWithPlus)
-      .fetch();
-
-    if (phoneNumberObj) {
-      const valid: boolean = !!phoneNumberObj.valid;
-      const countryCode: string | undefined = phoneNumberObj.countryCode;
-      const formattedNumber: string | undefined = phoneNumberObj.phoneNumber;
-      const nationalFormat: string | undefined = phoneNumberObj.nationalFormat;
-
-      if (!valid) {
-        return {
-          phoneNumber: normalizedPhone,
-          isValid: false,
-          countryCode,
-        };
-      }
-      return {
-        phoneNumber: normalizedPhone,
-        isValid: true,
-        countryCode,
-        formattedNumber: formattedNumber || phoneNumberWithPlus,
-        nationalFormat,
-        isReachable: true,
-        validatedAt: new Date().toISOString(),
-      };
-    }
-
-    return null;
-  } catch (error: any) {
-    if (error.code === 20404 || error.status === 404) {
-      return {
-        phoneNumber: normalizePhoneNumber(phoneNumber),
-        isValid: false,
-      };
-    }
-
-    console.error("Twilio Lookup error:", error.message);
-    return null;
-  }
+  return digits;
 }
 
+/** True when the input contains enough digits to be worth a paid lookup. */
+export function looksLikePhoneNumber(value: string): boolean {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 15;
+}
+
+function result(
+  phoneNumber: string,
+  status: PhoneValidationStatus,
+  extra: Partial<PhoneValidationResult> = {}
+): PhoneValidationResult {
+  return {
+    phoneNumber,
+    isValid: status === PhoneValidationStatus.VALID,
+    status,
+    provider: ValidationProvider.TWILIO,
+    validatedAt: new Date().toISOString(),
+    ...extra,
+  };
+}
+
+/**
+ * Looks a number up with Twilio. Never throws: lookups that could not be
+ * completed come back with status UNKNOWN and an `error`, so callers can tell
+ * "Twilio says invalid" apart from "we could not check".
+ */
 export async function validatePhoneNumber(
   phoneNumber: string
 ): Promise<PhoneValidationResult> {
-  if (!phoneNumber || phoneNumber.trim().length === 0) {
-    return {
-      phoneNumber: phoneNumber || "",
-      isValid: false,
-      validatedAt: new Date().toISOString(),
-    };
+  const normalized = normalizePhoneNumber(phoneNumber);
+
+  if (!looksLikePhoneNumber(normalized)) {
+    return result(normalized || String(phoneNumber ?? ""), PhoneValidationStatus.INVALID, {
+      error: "Not a phone number",
+    });
   }
 
-  const twilioResult = await twilioLookup(phoneNumber);
-  if (twilioResult) {
-    return twilioResult;
+  if (!twilioClient) {
+    return result(normalized, PhoneValidationStatus.UNKNOWN, {
+      error: "Lookup provider not configured",
+    });
   }
 
-  return {
-    phoneNumber: normalizePhoneNumber(phoneNumber),
-    isValid: false,
-  };
+  try {
+    const lookup: any = await twilioClient.lookups.v2
+      .phoneNumbers(`+${normalized}`)
+      .fetch();
+
+    if (!lookup?.valid) {
+      return result(normalized, PhoneValidationStatus.INVALID, {
+        countryCode: lookup?.countryCode,
+      });
+    }
+
+    return result(normalized, PhoneValidationStatus.VALID, {
+      countryCode: lookup.countryCode,
+      formattedNumber: lookup.phoneNumber || `+${normalized}`,
+      nationalFormat: lookup.nationalFormat,
+      isReachable: true,
+    });
+  } catch (error: any) {
+    if (error?.code === 20404 || error?.status === 404) {
+      return result(normalized, PhoneValidationStatus.INVALID);
+    }
+
+    console.error("Twilio lookup error:", error?.message);
+    return result(normalized, PhoneValidationStatus.UNKNOWN, {
+      error: error?.status === 429 ? "Rate limited" : "Lookup failed",
+    });
+  }
 }
 
 export async function validateBulkPhoneNumbers(
@@ -111,16 +120,13 @@ export async function validateBulkPhoneNumbers(
 ): Promise<PhoneValidationResult[]> {
   const results: PhoneValidationResult[] = [];
 
-  const batchSize = 10;
-  for (let i = 0; i < phoneNumbers.length; i += batchSize) {
-    const batch = phoneNumbers.slice(i, i + batchSize);
-    const batchResults = await Promise.all(
-      batch.map((phone) => validatePhoneNumber(phone))
-    );
+  for (let i = 0; i < phoneNumbers.length; i += BATCH_SIZE) {
+    const batch = phoneNumbers.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(batch.map(validatePhoneNumber));
     results.push(...batchResults);
 
-    if (i + batchSize < phoneNumbers.length) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+    if (i + BATCH_SIZE < phoneNumbers.length) {
+      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
     }
   }
 

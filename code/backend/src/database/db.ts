@@ -41,6 +41,9 @@ const connectDB = async (): Promise<void> => {
       await subscriptionsCollection.createIndex({ userId: 1 });
       await subscriptionsCollection.createIndex({ endDate: 1 });
 
+      const historiesCollection = db.collection("validation_histories");
+      await historiesCollection.createIndex({ userId: 1, createdAt: -1 });
+
       const paymentsCollection = db.collection("payments");
       await paymentsCollection.createIndex({ userId: 1 });
       await paymentsCollection.createIndex({ subscriptionId: 1 });

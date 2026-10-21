@@ -1,40 +1,44 @@
 import { Request, Response } from "express";
-import { CreateUserDto, LoginDto } from "../types";
 import { AuthRequest, generateToken } from "../middleware/auth";
-import { userRepository } from "../repository/userRepository";
-import bcrypt from "bcryptjs";
+import { userRepository, DuplicateEmailError } from "../repository/userRepository";
+import { User } from "../types";
+
+const MIN_PASSWORD_LENGTH = 8;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const str = (value: unknown) => (typeof value === "string" ? value : "");
+
+const toPublicUser = (user: User) => ({
+  id: user.id,
+  email: user.email,
+  name: user.name,
+  createdAt: user.createdAt,
+});
 
 export class AuthController {
   async register(req: Request, res: Response) {
     try {
-      const userData: CreateUserDto = req.body;
+      const name = str(req.body?.name).trim();
+      const email = str(req.body?.email).trim();
+      const password = str(req.body?.password);
 
-      if (!userData.email || !userData.password || !userData.name) {
+      if (!email || !password || !name) {
+        return res.status(400).json({ error: "Name, email and password are required" });
+      }
+      if (!EMAIL_PATTERN.test(email)) {
+        return res.status(400).json({ error: "Enter a valid email address" });
+      }
+      if (password.length < MIN_PASSWORD_LENGTH) {
         return res
           .status(400)
-          .json({ error: "Email, password, and name are required" });
+          .json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
       }
 
-      if (userData.password.length < 8) {
-        return res
-          .status(400)
-          .json({ error: "Password must be at least 8 characters" });
-      }
+      const user = await userRepository.create({ name, email, password });
 
-      const user = await userRepository.create(userData);
-      const token = generateToken(user);
-
-      res.status(201).json({
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          createdAt: user.createdAt,
-        },
-      });
-    } catch (error: any) {
-      if (error.message?.includes("already exists")) {
+      res.status(201).json({ token: generateToken(user), user: toPublicUser(user) });
+    } catch (error) {
+      if (error instanceof DuplicateEmailError) {
         return res.status(409).json({ error: error.message });
       }
       console.error("Error registering user:", error);
@@ -44,34 +48,19 @@ export class AuthController {
 
   async login(req: Request, res: Response) {
     try {
-      const loginData: LoginDto = req.body;
+      const email = str(req.body?.email).trim();
+      const password = str(req.body?.password);
 
-      if (!loginData.email || !loginData.password) {
-        return res
-          .status(400)
-          .json({ error: "Email and password are required" });
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
       }
 
-      const user = await userRepository.verifyPassword(
-        loginData.email,
-        loginData.password
-      );
-
+      const user = await userRepository.verifyPassword(email, password);
       if (!user) {
-        return res.status(401).json({ error: "Invalid email or password" });
+        return res.status(401).json({ error: "Incorrect email or password" });
       }
 
-      const token = generateToken(user);
-
-      res.json({
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          createdAt: user.createdAt,
-        },
-      });
+      res.json({ token: generateToken(user), user: toPublicUser(user) });
     } catch (error) {
       console.error("Error logging in:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -80,22 +69,12 @@ export class AuthController {
 
   async me(req: AuthRequest, res: Response) {
     try {
-      const authuser = req.user;
-      if (!authuser) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = await userRepository.findById(authuser.id);
+      const user = await userRepository.findById(req.user!.id);
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(401).json({ error: "Account no longer exists" });
       }
 
-      res.json({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        createdAt: user.createdAt,
-      });
+      res.json(toPublicUser(user));
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -104,62 +83,57 @@ export class AuthController {
 
   async update(req: AuthRequest, res: Response) {
     try {
-      const authUser = req.user;
-      if (!authUser) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const user = (await userRepository.findById(authUser.id)) as any;
+      const userId = req.user!.id;
+      const user = await userRepository.findById(userId);
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(401).json({ error: "Account no longer exists" });
       }
 
-      const { name, email, oldPassword, newPassword, confirmPassword } =
-        req.body;
+      const name = str(req.body?.name).trim() || user.name;
+      const email = str(req.body?.email).trim() || user.email;
+      const oldPassword = str(req.body?.oldPassword);
+      const newPassword = str(req.body?.newPassword);
+      const confirmPassword = str(req.body?.confirmPassword);
 
-      let userData: any = {
-        id: user.id,
-        name: name.trim() ?? user.name,
-        email: email.trim() ?? user.email,
-      };
+      if (!EMAIL_PATTERN.test(email)) {
+        return res.status(400).json({ error: "Enter a valid email address" });
+      }
+
+      let password: string | undefined;
 
       if (oldPassword || newPassword || confirmPassword) {
         if (!oldPassword || !newPassword || !confirmPassword) {
           return res
             .status(400)
-            .json({ error: "All password fields are required." });
+            .json({ error: "Fill in all password fields to change your password" });
         }
-
-        const isOldPasswordValid = await bcrypt.compare(
-          oldPassword,
-          user.password
-        );
-
-
-        if (!isOldPasswordValid) {
-          return res.status(400).json({ error: "Old password is incorrect." });
+        if (!(await userRepository.verifyPasswordById(userId, oldPassword))) {
+          return res.status(400).json({ error: "Current password is incorrect" });
         }
-
         if (newPassword !== confirmPassword) {
-          return res.status(400).json({ error: "New passwords do not match." });
+          return res.status(400).json({ error: "New passwords do not match" });
         }
-
-        if (newPassword.length < 8) {
+        if (newPassword.length < MIN_PASSWORD_LENGTH) {
           return res
             .status(400)
-            .json({ error: "Password must be at least 8 characters." });
+            .json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
         }
-
-        userData.password = newPassword;
+        password = newPassword;
       }
 
-      await userRepository.update(userData);
+      const updated = await userRepository.update({ id: userId, name, email, password });
 
+      // Name and email are in the token claims, so hand back a fresh one.
       return res.status(200).json({
-        message: "Profile updated successfully",
+        message: "Profile updated",
+        token: generateToken(updated),
+        user: toPublicUser(updated),
       });
     } catch (error) {
-      console.error("Error fetching user:", error);
+      if (error instanceof DuplicateEmailError) {
+        return res.status(409).json({ error: error.message });
+      }
+      console.error("Error updating profile:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   }

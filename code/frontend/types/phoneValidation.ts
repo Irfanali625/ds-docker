@@ -1,46 +1,46 @@
-export enum PhoneValidationStatus {
-  VALID = 'VALID',
-  INVALID = 'INVALID',
-  UNKNOWN = 'UNKNOWN',
-  VOICE_ENABLED = 'VOICE_ENABLED',
-  SMS_ENABLED = 'SMS_ENABLED',
-  LANDLINE = 'LANDLINE',
-  MOBILE = 'MOBILE'
-}
-
-export enum ValidationProvider {
-  HLR = 'HLR',
-  TWILIO = 'TWILIO'
-}
+export type PhoneType = 'B2B' | 'B2C';
+export type ValidationMode = 'single' | 'bulk' | 'csv';
+export type ValidationStatus = 'VALID' | 'INVALID' | 'UNKNOWN';
 
 export interface PhoneValidationResult {
   phoneNumber: string;
   isValid: boolean;
-  status?: PhoneValidationStatus;
-  provider?: ValidationProvider;
-  countryCode?: string;
-  countryName?: string;
-  carrier?: string;
-  lineType?: 'MOBILE' | 'LANDLINE' | 'VOIP' | 'UNKNOWN';
+  status?: ValidationStatus;
   isReachable?: boolean;
+  countryCode?: string;
   formattedNumber?: string;
   nationalFormat?: string;
   error?: string;
   validatedAt?: string;
 }
 
-export interface BulkValidationResult {
+export interface ValidationRun {
+  historyId: string;
+  type: ValidationMode;
+  phoneType: PhoneType;
   total: number;
   valid: number;
-  invalid?: number;
-  unknown?: number;
+  invalid: number;
+  unknown: number;
+  duplicatesRemoved?: number;
+  rowsSkipped?: number;
   results: PhoneValidationResult[];
   processedAt: string;
+  storageWarning?: string;
 }
 
-export interface CSVValidationResult {
-  row: number;
-  phoneNumber: string;
-  validation: PhoneValidationResult;
+export interface HistoryEntry {
+  id: string;
+  phoneType: PhoneType;
+  type: ValidationMode;
+  filePath: string;
+  total: number;
+  valid?: number;
+  invalid?: number;
+  unknown?: number;
+  createdAt: string;
 }
 
+export const MAX_BULK_NUMBERS = 1000;
+export const MAX_CSV_ROWS = 10000;
+export const MAX_CSV_BYTES = 10 * 1024 * 1024;

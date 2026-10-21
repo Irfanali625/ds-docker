@@ -2,34 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-/* Ensure inputs are visible */
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-textarea,
-select {
-  color: rgb(17, 24, 39) !important; /* text-gray-900 */
-  background-color: white !important;
-}
+  body {
+    @apply bg-slate-50 text-slate-900;
+  }
 
-input::placeholder,
-textarea::placeholder {
-  color: rgb(156, 163, 175) !important; /* text-gray-400 */
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  ::selection {
+    @apply bg-brand-100 text-brand-900;
+  }
 }

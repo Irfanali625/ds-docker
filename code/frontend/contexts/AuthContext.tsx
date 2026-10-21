@@ -2,98 +2,147 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   ReactNode,
 } from "react";
-import { User } from "@/types";
-import {
-  authApi,
-  setUser as saveUser,
-  removeUser,
-  getAuthToken,
-} from "@/lib/auth";
-import { useUserStore } from "@/zustand/userStore";
-import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { useRouter, usePathname } from "next/navigation";
 import cookies from "js-cookie";
+import { User } from "@/types";
+import { AUTH_COOKIE, authApi, onUnauthorized } from "@/lib/api";
+
+const USER_CACHE_KEY = "vnc_user";
+const TOKEN_TTL_DAYS = 7;
 
 interface AuthContextType {
   user: User | null;
+  /** True until the stored session has been checked against the API. */
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
   isAuthenticated: boolean;
-  fetchAndSetUser: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
+  updateSession: (user: User, token?: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function readCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUser(user: User | null) {
+  try {
+    if (user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+    else localStorage.removeItem(USER_CACHE_KEY);
+  } catch {
+    // Storage can be unavailable (private mode); the cookie is the source of truth.
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { user, token } = useUserStore();
+  const pathname = usePathname();
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const tokenFromCookie = getAuthToken();
+  const updateSession = useCallback((nextUser: User, token?: string) => {
+    if (token) {
+      cookies.set(AUTH_COOKIE, token, {
+        expires: TOKEN_TTL_DAYS,
+        sameSite: "lax",
+        secure: window.location.protocol === "https:",
+      });
+    }
+    writeCachedUser(nextUser);
+    setUser(nextUser);
+  }, []);
 
-    if (tokenFromCookie) {
-      if (!token) {
-        useUserStore.setState((state) => ({
-          ...state,
-          token: tokenFromCookie,
-        }));
-      }
+  const clearSession = useCallback(() => {
+    cookies.remove(AUTH_COOKIE);
+    writeCachedUser(null);
+    setUser(null);
+  }, []);
+
+  const logout = useCallback(() => {
+    clearSession();
+    router.replace("/login");
+  }, [clearSession, router]);
+
+  // Any 401 from the API means the session is gone: sign out and come back here after login.
+  useEffect(() => {
+    onUnauthorized(() => {
+      clearSession();
+      const here = window.location.pathname + window.location.search;
+      router.replace(`/login?redirect=${encodeURIComponent(here)}`);
+    });
+  }, [clearSession, router]);
+
+  // Restore the session on first load: show the cached user immediately, then confirm with the API.
+  useEffect(() => {
+    if (!cookies.get(AUTH_COOKIE)) {
+      writeCachedUser(null);
       setLoading(false);
       return;
     }
 
-    removeUser();
-    setLoading(false);
-  }, [token]);
+    const cached = readCachedUser();
+    if (cached) setUser(cached);
 
-  const fetchAndSetUser = async () => {
-    try {
-      const user = await api.me();
-      const token = cookies.get("auth_token")!;
-      const { setUser } = useUserStore.getState();
-      setUser(user, token);
-      return user;
-    } catch (err) {
-      console.error("Failed to fetch user:", err);
-      const { clearAuth } = useUserStore.getState();
-      clearAuth();
-      cookies.remove("auth_token");
-      throw err;
+    authApi
+      .me()
+      .then((fresh) => updateSession(fresh))
+      .catch((err) => {
+        // Keep the cached session on network errors; 401s are handled by onUnauthorized.
+        if (!cached || err?.status === 401) clearSession();
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Protected pages rendered after a client-side sign out should not linger.
+  useEffect(() => {
+    if (!loading && !user && pathname?.startsWith("/dashboard")) {
+      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
     }
-  };
+  }, [loading, user, pathname, router]);
 
-  const login = async (email: string, password: string) => {
-    const response = await authApi.login({ email, password });
-    saveUser(response.user, response.token);
-  };
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const { user, token } = await authApi.login(email, password);
+      updateSession(user, token);
+    },
+    [updateSession]
+  );
 
-  const register = async (email: string, password: string, name: string) => {
-    const response = await authApi.register({ email, password, name });
-    saveUser(response.user, response.token);
-  };
+  const register = useCallback(
+    async (name: string, email: string, password: string) => {
+      const { user, token } = await authApi.register(name, email, password);
+      updateSession(user, token);
+    },
+    [updateSession]
+  );
 
-  const logout = () => {
-    removeUser();
-    router.push("/login");
-  };
-
-  const value = {
-    user,
-    loading,
-    login,
-    register,
-    logout,
-    isAuthenticated: !!user,
-    fetchAndSetUser,
-  };
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      isAuthenticated: !!user,
+      login,
+      register,
+      logout,
+      updateSession,
+    }),
+    [user, loading, login, register, logout, updateSession]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -102,4 +151,12 @@ export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
+}
+
+/** Only allow same-site relative redirects after login. */
+export function safeRedirect(target: string | null | undefined, fallback = "/dashboard") {
+  if (!target || !target.startsWith("/") || target.startsWith("//") || target.startsWith("/\\")) {
+    return fallback;
+  }
+  return target;
 }

@@ -2,7 +2,7 @@ import { subscriptionRepository } from "../repository/subscriptionRepository";
 import { paymentRepository } from "../repository/paymentRepository";
 import { SubscriptionPlan, SubscriptionStatus } from "../models/Subscription";
 import { PaymentStatus, PaymentMethod } from "../models/Payment";
-import { getDB } from "../database/db";
+import { validationHistoryRepository } from "../repository/validationHistoryRepository";
 
 export const FREE_TIER_LIMIT = 5;
 export const PREMIUM_PRICE = 19.99;
@@ -84,19 +84,9 @@ export class SubscriptionService {
 
   private static async countFreeValidations(userId: string): Promise<number> {
     try {
-      const db = getDB();
-      const histories = await db.collection("validation_histories").find({
-        userId,
-        type: { $in: ['single', 'bulk', 'csv'] }
-      }).toArray();
-      
-      const totalValidations = histories.reduce((sum, history) => {
-        return sum + (history.total || 0);
-      }, 0);
-      
-      return totalValidations;
+      return await validationHistoryRepository.countValidatedByUser(userId);
     } catch (error) {
-      console.error('Error counting free validations:', error);
+      console.error("Error counting free validations:", error);
       return 0;
     }
   }
@@ -158,9 +148,6 @@ export class SubscriptionService {
   static async canUserValidate(userId: string): Promise<boolean> {
     const limit = await this.getValidationLimit(userId);
     return limit.canValidate;
-  }
-
-  static async incrementValidationCount(userId: string): Promise<void> {
   }
 
   static async expireOldSubscriptions(): Promise<number> {

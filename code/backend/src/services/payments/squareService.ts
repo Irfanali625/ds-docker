@@ -136,11 +136,16 @@ export async function handleSquareWebhook({ rawBody, signature, url }: SquareWeb
     throw new Error("Missing Square webhook signature");
   }
 
-  const hmac = crypto.createHmac("sha256", squareWebhookSignatureKey);
-  hmac.update(url + rawBody.toString());
-  const expectedSignature = hmac.digest("base64");
+  // Square signs the exact notification URL configured in its dashboard. Set
+  // SQUARE_WEBHOOK_URL when the URL seen behind the proxy differs from it.
+  const signedUrl = process.env.SQUARE_WEBHOOK_URL || url;
+  const expected = crypto
+    .createHmac("sha256", squareWebhookSignatureKey)
+    .update(signedUrl + rawBody.toString())
+    .digest();
+  const received = Buffer.from(signature, "base64");
 
-  if (expectedSignature !== signature) {
+  if (received.length !== expected.length || !crypto.timingSafeEqual(received, expected)) {
     throw new Error("Invalid Square webhook signature");
   }
 

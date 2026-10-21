@@ -1,164 +1,108 @@
 "use client";
 
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
+import { IconCheck, IconX } from "@tabler/icons-react";
 import { subscriptionApi } from "@/lib/api";
-import { IconX, IconCrown, IconCheck, IconLoader, IconArrowUp } from "@tabler/icons-react";
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 
-interface UpgradeModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  premiumPrice: number;
-}
+const FEATURES = [
+  "Unlimited validations for 30 days",
+  "Single number, list and CSV validation",
+  "Full history with downloadable results",
+];
 
-export function UpgradeModal({
-  isOpen,
-  onClose,
-  premiumPrice,
-}: UpgradeModalProps) {
-  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+export function UpgradeModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [price, setPrice] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setError(null);
+    subscriptionApi
+      .getStatus()
+      .then((s) => setPrice(s.premiumPrice))
+      .catch(() => setPrice(null));
+
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !submitting && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose, submitting]);
 
   if (!isOpen) return null;
 
-  const providers: Array<{
-    id: "stripe" | "square";
-    name: string;
-    description: string;
-    icon: React.ReactNode;
-  }> = [
-    // {
-    //   id: "stripe",
-    //   name: "Stripe",
-    //   description: "Pay securely with debit/credit cards via Stripe Checkout.",
-    //   icon: <IconArrowUp className="w-5 h-5 text-indigo-600" stroke={2} />,
-    // },
-    {
-      id: "square",
-      name: "Checkout",
-      description: "",
-      icon: <IconArrowUp className="w-5 h-5 text-indigo-600" stroke={2} />,
-    },
-  ];
-
-  const handleProviderCheckout = async (provider: "stripe" | "square") => {
+  const checkout = async () => {
+    setSubmitting(true);
+    setError(null);
     try {
-      setLoadingProvider(provider);
-      setError(null);
-
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const successUrl = `${origin}/subscription/success?provider=${provider}`;
-      const cancelUrl = `${origin}/subscription/cancel?provider=${provider}`;
-
-      const response = await subscriptionApi.createCheckout({
-        provider,
-        successUrl,
-        cancelUrl,
+      const origin = window.location.origin;
+      const { checkoutUrl } = await subscriptionApi.createCheckout({
+        provider: "square",
+        successUrl: `${origin}/subscription/success`,
+        cancelUrl: `${origin}/subscription/cancel`,
       });
-
-      if (response.checkoutUrl) {
-        window.location.href = response.checkoutUrl;
-      } else {
-        throw new Error("Failed to retrieve checkout URL");
-      }
+      window.location.href = checkoutUrl;
     } catch (err: any) {
-      setError(err.message || "Failed to create checkout session");
-    } finally {
-      setLoadingProvider(null);
+      setError(err.message);
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/50" onClick={() => !submitting && onClose()} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upgrade-title"
+        className="relative w-full max-w-md rounded-xl bg-white shadow-overlay"
+      >
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          disabled={submitting}
+          className="absolute right-4 top-4 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          aria-label="Close"
         >
-          <IconX className="w-6 h-6" />
+          <IconX className="h-5 w-5" />
         </button>
 
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <IconCrown className="w-8 h-8 text-indigo-600" />
-          </div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">
-            Upgrade to Premium
-          </h3>
+        <div className="px-6 pb-6 pt-7">
+          <p className="text-sm font-medium text-brand-700">Premium</p>
+          <h2 id="upgrade-title" className="mt-1 text-xl font-semibold text-slate-900">
+            Upgrade your plan
+          </h2>
+          <p className="mt-4 flex items-baseline gap-1">
+            <span className="text-4xl font-semibold tracking-tight text-slate-900">
+              {price !== null ? `$${price.toFixed(2)}` : "..."}
+            </span>
+            <span className="text-sm text-slate-500">per month</span>
+          </p>
+
+          <ul className="mt-6 space-y-3">
+            {FEATURES.map((feature) => (
+              <li key={feature} className="flex items-start gap-3 text-sm text-slate-700">
+                <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" stroke={2.5} />
+                {feature}
+              </li>
+            ))}
+          </ul>
+
+          {error && (
+            <Alert tone="error" className="mt-6">
+              {error}
+            </Alert>
+          )}
+
+          <Button size="lg" fullWidth className="mt-6" loading={submitting} onClick={checkout}>
+            {submitting ? "Opening checkout" : "Continue to checkout"}
+          </Button>
+          <p className="mt-3 text-center text-xs text-slate-500">
+            Payments are handled by Square. Your plan activates as soon as payment completes.
+          </p>
         </div>
-
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-6 mb-6 border border-indigo-200">
-          <div className="text-center mb-4">
-            <div className="text-4xl font-bold text-indigo-900 mb-1">
-              ${premiumPrice}
-            </div>
-            <div className="text-gray-600">per month</div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <IconCheck className="w-5 h-5 text-green-600" />
-              <span className="text-gray-700">Unlimited validations</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <IconCheck className="w-5 h-5 text-green-600" />
-              <span className="text-gray-700">Single, bulk, and CSV validation</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <IconCheck className="w-5 h-5 text-green-600" />
-              <span className="text-gray-700">30-day subscription</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <IconCheck className="w-5 h-5 text-green-600" />
-              <span className="text-gray-700">Full validation history access</span>
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {providers.map((provider) => (
-            <button
-              key={provider.id}
-              onClick={() => handleProviderCheckout(provider.id)}
-              disabled={loadingProvider !== null}
-              className="w-full flex items-center justify-between gap-4 px-4 py-3 border border-indigo-200 rounded-lg bg-indigo-400 hover:bg-indigo-500 transition-colors disabled:opacity-70"
-            >
-              <div className="flex items-center gap-3 text-left">
-                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100">
-                  {provider.icon}
-                </span>
-                <div>
-                  <div className="font-semibold text-white">{provider.name}</div>
-                  <div className="text-sm text-white">{provider.description}</div>
-                </div>
-              </div>
-              {loadingProvider === provider.id ? (
-                <IconLoader className="w-5 h-5 text-white animate-spin" stroke={2} />
-              ) : (
-                <IconArrowUp className="w-5 h-5 text-white" stroke={2} />
-              )}
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={onClose}
-          disabled={loadingProvider !== null}
-          className="mt-4 w-full px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 active:bg-gray-400 disabled:opacity-50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-        >
-          Close
-        </button>
-
-        <p className="text-xs text-gray-500 text-center mt-4">
-          Payments are processed securely. Your subscription activates automatically after payment.
-        </p>
       </div>
     </div>
   );
 }
-

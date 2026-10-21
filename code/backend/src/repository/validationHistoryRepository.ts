@@ -1,22 +1,30 @@
 import { ObjectId } from "mongodb";
 import { getDB } from "../database/db";
 
+export type ValidationType = "single" | "bulk" | "csv";
+
 export interface ValidationHistory {
   id: string;
   userId: string;
   phoneType: "B2B" | "B2C";
-  type: "single" | "bulk" | "csv";
+  type: ValidationType;
   filePath: string;
   total: number;
+  valid?: number;
+  invalid?: number;
+  unknown?: number;
   createdAt: string;
 }
 
 export interface CreateValidationHistoryDto {
   userId: string;
   phoneType: "B2B" | "B2C";
-  type: "single" | "bulk" | "csv";
+  type: ValidationType;
   filePath: string;
   total: number;
+  valid: number;
+  invalid: number;
+  unknown: number;
 }
 
 export class ValidationHistoryRepository {
@@ -24,45 +32,41 @@ export class ValidationHistoryRepository {
     return getDB().collection("validation_histories");
   }
 
-  /**
-   * Create a new validation history record
-   */
   async create(data: CreateValidationHistoryDto): Promise<ValidationHistory> {
-    const now = new Date();
-    const doc = {
-      userId: data.userId,
-      phoneType: data.phoneType,
-      type: data.type,
-      filePath: data.filePath,
-      total: data.total,
-      createdAt: now,
-    };
-
+    const doc = { ...data, createdAt: new Date() };
     const result = await this.getCollection().insertOne(doc);
     return this.mapDocumentToEntity({ ...doc, _id: result.insertedId });
   }
 
-  /**
-   * Find all validation histories for a specific user
-   */
   async findByUserId(userId: string): Promise<ValidationHistory[]> {
-    const cursor = this.getCollection()
+    const docs = await this.getCollection()
       .find({ userId })
-      .sort({ createdAt: -1 });
-    const docs = await cursor.toArray();
+      .sort({ createdAt: -1 })
+      .toArray();
     return docs.map((doc) => this.mapDocumentToEntity(doc));
   }
 
-  /**
-   * Get a specific record by ID
-   */
-  async findById(id: string): Promise<ValidationHistory | null> {
-    try {
-      const doc = await this.getCollection().findOne({ _id: new ObjectId(id) });
-      return doc ? this.mapDocumentToEntity(doc) : null;
-    } catch {
-      return null;
-    }
+  async findByIdForUser(
+    id: string,
+    userId: string
+  ): Promise<ValidationHistory | null> {
+    if (!ObjectId.isValid(id)) return null;
+    const doc = await this.getCollection().findOne({
+      _id: new ObjectId(id),
+      userId,
+    });
+    return doc ? this.mapDocumentToEntity(doc) : null;
+  }
+
+  /** Sum of numbers validated by a user, used for free-tier accounting. */
+  async countValidatedByUser(userId: string): Promise<number> {
+    const [row] = await this.getCollection()
+      .aggregate([
+        { $match: { userId } },
+        { $group: { _id: null, total: { $sum: "$total" } } },
+      ])
+      .toArray();
+    return row?.total ?? 0;
   }
 
   private mapDocumentToEntity(doc: any): ValidationHistory {
@@ -72,7 +76,10 @@ export class ValidationHistoryRepository {
       phoneType: doc.phoneType,
       type: doc.type,
       filePath: doc.filePath,
-      total: doc.total,
+      total: doc.total ?? 0,
+      valid: doc.valid,
+      invalid: doc.invalid,
+      unknown: doc.unknown,
       createdAt: doc.createdAt?.toISOString() || new Date().toISOString(),
     };
   }

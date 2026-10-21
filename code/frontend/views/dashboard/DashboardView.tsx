@@ -1,80 +1,140 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { PhoneValidator } from "@/components/phone-validation/PhoneValidator";
-import { api } from "@/lib/api";
-import { DashboardNavbar } from "./components/DashboardNavbar";
-import { DashboardTabs } from "./components/DashboardTabs";
-import { MyHistory } from "./components/tabs/MyHistory";
-import { SubscriptionStatus } from "@/components/subscription/SubscriptionStatus";
+import { useState } from "react";
+import { IconFileUpload, IconList, IconPhone } from "@tabler/icons-react";
+import { validationApi, ApiError } from "@/lib/api";
+import { PhoneType, ValidationMode, ValidationRun } from "@/types/phoneValidation";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card } from "@/components/ui/Card";
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { SingleValidation } from "@/components/phone-validation/SingleValidation";
+import { BulkValidation } from "@/components/phone-validation/BulkValidation";
+import { CsvValidation } from "@/components/phone-validation/CsvValidation";
+import { ResultsPanel } from "@/components/phone-validation/ResultsPanel";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
-import { subscriptionApi } from "@/lib/api";
+
+const MODES: { value: ValidationMode; label: string; icon: typeof IconPhone }[] = [
+  { value: "single", label: "Single number", icon: IconPhone },
+  { value: "bulk", label: "Paste a list", icon: IconList },
+  { value: "csv", label: "Upload CSV", icon: IconFileUpload },
+];
 
 export function DashboardView() {
-  const { user, logout } = useAuth();
+  const [mode, setMode] = useState<ValidationMode>("single");
+  const [phoneType, setPhoneType] = useState<PhoneType>("B2B");
+  const [results, setResults] = useState<Partial<Record<ValidationMode, ValidationRun>>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<ApiError | Error | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<
-    "validator" | "history" | "subscription"
-  >("validator");
-  const [history, getHistory] = useState<any[]>([]);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [premiumPrice, setPremiumPrice] = useState(19);
-
-  const handleLogout = () => {
-    logout();
-  };
-
-  const loadHistory = async () => {
+  const run = async (task: () => Promise<ValidationRun>) => {
+    setLoading(true);
+    setError(null);
     try {
-      const history = await api.getHistory();
-      getHistory(history);
+      const result = await task();
+      setResults((prev) => ({ ...prev, [mode]: result }));
     } catch (err: any) {
-      console.error("Failed to load history:", err);
+      setError(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadPremiumPrice = async () => {
-    try {
-      const status = await subscriptionApi.getStatus();
-      setPremiumPrice(status.premiumPrice);
-    } catch (err: any) {
-      console.error("Failed to load subscription status:", err);
-    }
+  const changeMode = (next: ValidationMode) => {
+    if (loading) return;
+    setMode(next);
+    setError(null);
   };
 
-  useEffect(() => {
-    if (activeTab === "history") {
-      loadHistory();
-    }
-    if (activeTab === "subscription") {
-      loadPremiumPrice();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    loadPremiumPrice();
-  }, []);
+  const current = results[mode];
+  const requiresUpgrade = error instanceof ApiError && error.requiresUpgrade;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <DashboardNavbar user={user} logout={handleLogout} />
-      <main className="max-w-7xl mx-auto p-8">
-        <DashboardTabs activeTab={activeTab} setActiveTab={setActiveTab} />
-        {activeTab === "history" && <MyHistory history={history} />}
-        {activeTab === "validator" && (
-          <div className="space-y-6">
-            {/* Well be Set later */}
-            {/* <SubscriptionStatus onUpgrade={() => setShowUpgradeModal(true)} /> */}
-            <PhoneValidator />
-          </div>
-        )}
-      </main>
-      <UpgradeModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        premiumPrice={premiumPrice}
+    <>
+      <PageHeader
+        title="Validate phone numbers"
+        description="Check numbers against carrier records. Every run is saved to your history."
       />
-    </div>
+
+      <Card>
+        <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+          <SegmentedControl
+            ariaLabel="Validation method"
+            value={mode}
+            onChange={changeMode}
+            className="w-full lg:w-auto"
+            options={MODES.map(({ value, label, icon: Icon }) => ({
+              value,
+              label: (
+                <>
+                  <Icon className="hidden h-4 w-4 sm:block" stroke={1.75} />
+                  {label}
+                </>
+              ),
+            }))}
+          />
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-slate-700">List type</span>
+            <SegmentedControl
+              ariaLabel="List type"
+              value={phoneType}
+              onChange={setPhoneType}
+              options={[
+                { value: "B2B", label: "B2B" },
+                { value: "B2C", label: "B2C" },
+              ]}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-4 px-5 py-6 sm:px-6">
+          {error && (
+            <Alert
+              tone="error"
+              onDismiss={() => setError(null)}
+              action={
+                requiresUpgrade ? (
+                  <Button size="sm" onClick={() => setShowUpgrade(true)}>
+                    View plans
+                  </Button>
+                ) : undefined
+              }
+            >
+              {error.message}
+            </Alert>
+          )}
+
+          {mode === "single" && (
+            <SingleValidation
+              loading={loading}
+              onSubmit={(phone) => run(() => validationApi.single(phone, phoneType))}
+            />
+          )}
+          {mode === "bulk" && (
+            <BulkValidation
+              loading={loading}
+              onSubmit={(numbers) => run(() => validationApi.bulk(numbers, phoneType))}
+            />
+          )}
+          {mode === "csv" && (
+            <CsvValidation
+              loading={loading}
+              onError={(message) => setError(new Error(message))}
+              onSubmit={(file) => run(() => validationApi.csv(file, phoneType))}
+            />
+          )}
+        </div>
+      </Card>
+
+      {current && (
+        <div className="mt-6">
+          <ResultsPanel key={current.historyId} run={current} />
+        </div>
+      )}
+
+      <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
+    </>
   );
 }
