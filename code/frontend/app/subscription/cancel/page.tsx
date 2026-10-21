@@ -1,10 +1,8 @@
+import type { Metadata } from "next";
 import SubscriptionCancelView from "@/views/dashboard/subscription/SubscriptionCancelView";
-import { Suspense } from "react";
+
+export const metadata: Metadata = { title: "Checkout cancelled" };
 
 export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <SubscriptionCancelView />
-    </Suspense>
-  );
+  return <SubscriptionCancelView />;
 }

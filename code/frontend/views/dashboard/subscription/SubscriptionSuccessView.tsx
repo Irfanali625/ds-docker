@@ -1,63 +1,92 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { IconCheck } from "@tabler/icons-react";
+import { subscriptionApi } from "@/lib/api";
+import { Spinner } from "@/components/ui/Spinner";
+import { StatusPage, primaryLinkClass, secondaryLinkClass } from "./StatusPage";
+
+const POLL_INTERVAL_MS = 3000;
+const MAX_ATTEMPTS = 10;
+
+type State = "checking" | "active" | "pending";
 
 export default function SubscriptionSuccessView() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const provider = searchParams.get("provider") || "stripe";
+  const [state, setState] = useState<State>("checking");
+  const [endDate, setEndDate] = useState<string | undefined>();
 
+  // The subscription is created by the payment webhook, which can land a few seconds after the redirect.
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      router.refresh();
-    }, 1000);
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    let cancelled = false;
 
-    return () => clearTimeout(timeout);
-  }, [router]);
+    const check = async () => {
+      attempts++;
+      try {
+        const { usage } = await subscriptionApi.getStatus();
+        if (cancelled) return;
+        if (usage.hasActiveSubscription) {
+          setEndDate(usage.subscriptionEndDate);
+          setState("active");
+          return;
+        }
+      } catch {
+        // Keep polling; a transient error should not end the check.
+      }
+      if (attempts >= MAX_ATTEMPTS) setState("pending");
+      else timer = setTimeout(check, POLL_INTERVAL_MS);
+    };
+
+    check();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-      <div className="bg-white rounded-xl shadow-lg max-w-xl w-full p-8 text-center space-y-6">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 text-2xl font-bold">
-          ✓
-        </div>
-        <h1 className="text-2xl font-bold text-gray-800">Payment Successful</h1>
-        <p className="text-gray-600">
-          Thank you for upgrading! We are processing your{" "}
-          {provider.toUpperCase()} payment. Your premium subscription will
-          activate automatically within a few moments.
+    <StatusPage
+      icon={<IconCheck className="h-6 w-6" stroke={2.25} />}
+      iconClassName="bg-emerald-50 text-emerald-600"
+      title="Payment received"
+      actions={
+        <>
+          <Link href="/dashboard" className={primaryLinkClass}>
+            Go to dashboard
+          </Link>
+          <Link href="/dashboard/history" className={secondaryLinkClass}>
+            View history
+          </Link>
+        </>
+      }
+    >
+      {state === "checking" && (
+        <p className="inline-flex items-center gap-2">
+          <Spinner className="h-4 w-4 text-slate-400" />
+          Activating your Premium plan
         </p>
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4 text-left text-sm text-indigo-700">
-          <p className="font-semibold mb-1">What&apos;s next?</p>
-          <ul className="list-disc list-inside space-y-1">
-            <li>
-              You can continue validating phone numbers without limitations.
-            </li>
-            <li>
-              If you don&apos;t see premium access immediately, refresh the
-              dashboard.
-            </li>
-            <li>Contact support if you need any assistance.</li>
-          </ul>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link
-            href="/dashboard"
-            className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
-          >
-            Return to Dashboard
-          </Link>
-          <Link
-            href="/subscription"
-            className="px-6 py-2.5 bg-white text-indigo-600 border border-indigo-200 rounded-lg font-semibold hover:bg-indigo-50 transition-colors"
-          >
-            View Subscription Status
-          </Link>
-        </div>
-      </div>
-    </div>
+      )}
+      {state === "active" && (
+        <p>
+          Your Premium plan is active
+          {endDate &&
+            ` until ${new Date(endDate).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}`}
+          . You can validate without limits.
+        </p>
+      )}
+      {state === "pending" && (
+        <p>
+          Thanks for your payment. Activation is taking longer than usual and should complete
+          within a few minutes. If your plan is still inactive after that, contact support with
+          your payment receipt.
+        </p>
+      )}
+    </StatusPage>
   );
 }

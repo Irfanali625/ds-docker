@@ -1,10 +1,8 @@
+import type { Metadata } from "next";
 import SubscriptionSuccessView from "@/views/dashboard/subscription/SubscriptionSuccessView";
-import { Suspense } from "react";
+
+export const metadata: Metadata = { title: "Payment received" };
 
 export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <SubscriptionSuccessView />
-    </Suspense>
-  );
+  return <SubscriptionSuccessView />;
 }

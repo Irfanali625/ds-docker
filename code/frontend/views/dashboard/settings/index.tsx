@@ -1,205 +1,199 @@
 "use client";
 
-import { useAuth } from "@/contexts/AuthContext";
-import { DashboardNavbar } from "../components/DashboardNavbar";
-import { useForm, Controller } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import { useSettingsSchema } from "@/hook/useSettingsSchema";
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as yup from "yup";
+import { useAuth } from "@/contexts/AuthContext";
+import { authApi } from "@/lib/api";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Card, CardBody, CardFooter } from "@/components/ui/Card";
+import { TextField, PasswordField } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 
-export default function Settings() {
-  const { user, logout, fetchAndSetUser } = useAuth();
-  const schema = useSettingsSchema();
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+const MIN_PASSWORD_LENGTH = 8;
 
-  const { control, handleSubmit, reset } = useForm<any>({
-    resolver: yupResolver(schema),
-  });
+const profileSchema = yup.object({
+  name: yup.string().trim().required("Enter your name").max(80, "Name is too long"),
+  email: yup.string().trim().required("Enter your email").email("Enter a valid email address"),
+});
+
+const passwordSchema = yup.object({
+  oldPassword: yup.string().required("Enter your current password"),
+  newPassword: yup
+    .string()
+    .required("Enter a new password")
+    .min(MIN_PASSWORD_LENGTH, `Use at least ${MIN_PASSWORD_LENGTH} characters`),
+  confirmPassword: yup
+    .string()
+    .required("Confirm your new password")
+    .oneOf([yup.ref("newPassword")], "Passwords do not match"),
+});
+
+type ProfileData = yup.InferType<typeof profileSchema>;
+type PasswordData = yup.InferType<typeof passwordSchema>;
+
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="grid gap-4 py-8 first:pt-0 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:gap-10">
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+        <p className="mt-1 text-sm text-slate-500">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ProfileForm() {
+  const { user, updateSession } = useAuth();
+  const [saved, setSaved] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors, isSubmitting, isDirty },
+  } = useForm<ProfileData>({ resolver: yupResolver(profileSchema) });
 
   useEffect(() => {
-    if (user) {
-      reset({
-        name: user.name || "",
-        email: user.email || "",
-        oldPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-    }
+    if (user) reset({ name: user.name, email: user.email });
   }, [user, reset]);
 
-  const onSubmit = async (values: any) => {
+  const onSubmit = async (values: ProfileData) => {
+    setSaved(false);
     try {
-      const payload = { ...values };
-      if (
-        !payload.oldPassword &&
-        !payload.newPassword &&
-        !payload.confirmPassword
-      ) {
-        delete payload.oldPassword;
-        delete payload.newPassword;
-        delete payload.confirmPassword;
-      }
-      const response = await api.updateProfile(payload);
-      await fetchAndSetUser();
-      setSuccessMessage(response.message);
-    } catch (error: any) {
-      console.error("Update failed:", error.message);
+      const res = await authApi.updateProfile(values);
+      updateSession(res.user, res.token);
+      reset({ name: res.user.name, email: res.user.email });
+      setSaved(true);
+    } catch (err: any) {
+      setError("root", { message: err.message });
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <DashboardNavbar user={user} logout={logout} />
-      <main className="max-w-2xl mx-auto mt-10 p-8 bg-white rounded-xl shadow-md">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-          Account Settings
-        </h2>
+    <Card>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <CardBody className="space-y-5">
+          {errors.root && <Alert tone="error">{errors.root.message}</Alert>}
+          {saved && !isDirty && <Alert tone="success">Your profile has been updated.</Alert>}
+          <TextField label="Full name" autoComplete="name" error={errors.name?.message} {...register("name")} />
+          <TextField
+            label="Email"
+            type="email"
+            autoComplete="email"
+            error={errors.email?.message}
+            {...register("email")}
+          />
+        </CardBody>
+        <CardFooter>
+          <Button type="submit" loading={isSubmitting} disabled={!isDirty}>
+            Save changes
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
+  );
+}
 
-        {successMessage && (
-          <p className="text-green-600 mb-4 font-medium">{successMessage}</p>
-        )}
+function PasswordForm() {
+  const { user, updateSession } = useAuth();
+  const [saved, setSaved] = useState(false);
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name
-            </label>
-            <Controller
-              name="name"
-              control={control}
-              render={({ field, fieldState }) => (
-                <>
-                  <input
-                    {...field}
-                    value={field.value ?? ""}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Enter your name"
-                  />
-                  {fieldState.error && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </>
-              )}
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<PasswordData>({ resolver: yupResolver(passwordSchema) });
+
+  const onSubmit = async (values: PasswordData) => {
+    if (!user) return;
+    setSaved(false);
+    try {
+      const res = await authApi.updateProfile({ name: user.name, email: user.email, ...values });
+      updateSession(res.user, res.token);
+      reset({ oldPassword: "", newPassword: "", confirmPassword: "" });
+      setSaved(true);
+    } catch (err: any) {
+      setError("root", { message: err.message });
+    }
+  };
+
+  return (
+    <Card>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <CardBody className="space-y-5">
+          {errors.root && <Alert tone="error">{errors.root.message}</Alert>}
+          {saved && <Alert tone="success">Your password has been changed.</Alert>}
+          <PasswordField
+            label="Current password"
+            autoComplete="current-password"
+            error={errors.oldPassword?.message}
+            {...register("oldPassword")}
+          />
+          <div className="grid gap-5 sm:grid-cols-2">
+            <PasswordField
+              label="New password"
+              autoComplete="new-password"
+              hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
+              error={errors.newPassword?.message}
+              {...register("newPassword")}
+            />
+            <PasswordField
+              label="Confirm new password"
+              autoComplete="new-password"
+              error={errors.confirmPassword?.message}
+              {...register("confirmPassword")}
             />
           </div>
+        </CardBody>
+        <CardFooter>
+          <Button type="submit" loading={isSubmitting}>
+            Update password
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
+  );
+}
 
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <Controller
-              name="email"
-              control={control}
-              render={({ field, fieldState }) => (
-                <>
-                  <input
-                    {...field}
-                    type="email"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Enter your email"
-                  />
-                  {fieldState.error && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </>
-              )}
-            />
-          </div>
+export default function Settings() {
+  const { user } = useAuth();
 
-          {/* Old Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Old Password
-            </label>
-            <Controller
-              name="oldPassword"
-              control={control}
-              render={({ field, fieldState }) => (
-                <>
-                  <input
-                    {...field}
-                    value={field.value ?? ""}
-                    type="password"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Enter old password (optional)"
-                  />
-                  {fieldState.error && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </>
-              )}
-            />
-          </div>
-
-          {/* New Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              New Password
-            </label>
-            <Controller
-              name="newPassword"
-              control={control}
-              render={({ field, fieldState }) => (
-                <>
-                  <input
-                    {...field}
-                    value={field.value ?? ""}
-                    type="password"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Enter new password (optional)"
-                  />
-                  {fieldState.error && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </>
-              )}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
-            </label>
-            <Controller
-              name="confirmPassword"
-              control={control}
-              render={({ field, fieldState }) => (
-                <>
-                  <input
-                    {...field}
-                    value={field.value ?? ""}
-                    type="password"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Confirm new password (optional)"
-                  />
-                  {fieldState.error && (
-                    <p className="text-red-600 text-sm mt-1">
-                      {fieldState.error.message}
-                    </p>
-                  )}
-                </>
-              )}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition font-medium"
-          >
-            Save Changes
-          </button>
-        </form>
-      </main>
-    </div>
+  return (
+    <>
+      <PageHeader
+        title="Account settings"
+        description={
+          user?.createdAt
+            ? `Member since ${new Date(user.createdAt).toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              })}`
+            : undefined
+        }
+      />
+      <div className="divide-y divide-slate-200">
+        <Section title="Profile" description="Your name and the email address you sign in with.">
+          <ProfileForm />
+        </Section>
+        <Section title="Password" description="Use a password you do not use on other sites.">
+          <PasswordForm />
+        </Section>
+      </div>
+    </>
   );
 }
