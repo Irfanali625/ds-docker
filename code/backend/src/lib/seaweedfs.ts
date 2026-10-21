@@ -20,12 +20,31 @@ export const seaweedfsClient = new Client({
   pathStyle: true,
 });
 
+// Created on first upload when missing, so a fresh SeaweedFS volume needs no manual setup.
+let bucketReady: Promise<void> | null = null;
+
+const ensureBucket = (): Promise<void> => {
+  if (!bucketReady) {
+    bucketReady = (async () => {
+      if (!(await seaweedfsClient.bucketExists(bucket))) {
+        await seaweedfsClient.makeBucket(bucket);
+        console.log(`Created SeaweedFS bucket "${bucket}"`);
+      }
+    })().catch((error) => {
+      bucketReady = null; // retry on the next upload
+      throw error;
+    });
+  }
+  return bucketReady;
+};
+
 // Upload a file to SeaweedFS (via S3-compatible API)
 export const uploadFileToSeaweedFS = async (
   objectName: string,
   fileBuffer: Buffer
 ): Promise<string> => {
   try {
+    await ensureBucket();
     await seaweedfsClient.putObject(bucket, objectName, fileBuffer);
     return `${endpoint}:${port}/${bucket}/${objectName}`;
   } catch (e: any) {

@@ -6,6 +6,7 @@ import {
 } from "../lib/googleSheets";
 import { sleep } from "../utils/sleep";
 import { validatePhoneNumber } from "./phoneValidationService";
+import { PhoneValidationStatus } from "../types/phoneValidation";
 
 const CONFIG = {
   B2B: {
@@ -117,51 +118,39 @@ async function processSingleSheet(type: "B2B" | "B2C", sheetName: string) {
 
   /* -------- Validate & dedupe -------- */
 
+  // Rows are consumed from the top of the sheet in order. `consumedRows` is how
+  // many leading rows were fully handled (moved, duplicate, invalid or empty) and
+  // can be deleted. When a lookup cannot be completed (Twilio down, rate limited)
+  // we stop, so that row and everything after it stays for the next run.
   const validRowsToAppend: any[][] = [];
-
-  let processedRowCount = 0; // 👈 track rows safe to delete
+  let consumedRows = 0;
 
   for (const row of rowsToProcess) {
     const rawPhone = row[phoneColIndex];
 
+    if (!rawPhone) {
+      consumedRows++;
+      continue;
+    }
 
-    const phone = rawPhone
-      ? rawPhone.toString().replace(/[^0-9+]/g, "")
-      : "";
+    const validation = await validatePhoneNumber(String(rawPhone));
 
-    console.log(phone);
+    if (validation.status === PhoneValidationStatus.UNKNOWN) {
+      console.log(
+        `   Lookup unavailable for ${rawPhone} (${validation.error}), stopping batch`
+      );
+      break;
+    }
 
+    consumedRows++;
 
-    // ❌ Empty phone → skip & DO NOT delete
-    if (!rawPhone) continue;
+    if (validation.isValid && !existingPhones.has(validation.phoneNumber)) {
+      const newRow = [...row];
+      newRow[phoneColIndex] =
+        validation.formattedNumber || validation.phoneNumber;
 
-    try {
-      const validation = await validatePhoneNumber(phone);
-
-      if (!validation.isValid) {
-        console.log(`❌ Invalid phone: ${rawPhone}`);
-        continue; // ❌ invalid → DO NOT delete
-      }
-
-      // ✅ Valid phone → safe to delete later
-      processedRowCount++;
-
-      if (!existingPhones.has(validation.phoneNumber)) {
-        const newRow = [...row];
-        newRow[phoneColIndex] =
-          validation.formattedNumber || validation.phoneNumber;
-
-        validRowsToAppend.push(newRow);
-        existingPhones.add(validation.phoneNumber);
-      }
-    } catch (err: any) {
-      if (err?.message?.toLowerCase().includes("rate limit")) {
-        console.log("⏸ Twilio rate limit hit — stopping batch");
-        break; // ⏸ stop processing
-      }
-
-      console.log("❌ Validation error:", err.message);
-      continue; // unknown error → do NOT delete
+      validRowsToAppend.push(newRow);
+      existingPhones.add(validation.phoneNumber);
     }
 
     await sleep(5000);
@@ -172,19 +161,21 @@ async function processSingleSheet(type: "B2B" | "B2C", sheetName: string) {
   if (validRowsToAppend.length > 0) {
     await appendToSheet({
       spreadsheetId: cleaned,
-      range: "Sheet1!A:A",
+      range: `${cleanedSheetName}!A:A`,
       values: validRowsToAppend,
     });
 
-    console.log(`   ✅ Appended ${validRowsToAppend.length} rows`);
+    console.log(`   Appended ${validRowsToAppend.length} rows`);
   }
 
-  /* -------- Delete processed rows -------- */
+  /* -------- Delete consumed rows -------- */
+
+  if (consumedRows === 0) return;
 
   const sheetId = await getSheetId(unclean, sheetName);
   if (sheetId !== null) {
-    await deleteRows(unclean, sheetId, 1, 1 + rowsToProcess.length);
-    console.log(`   🗑 Deleted processed rows`);
+    await deleteRows(unclean, sheetId, 1, 1 + consumedRows);
+    console.log(`   Removed ${consumedRows} processed rows`);
   }
 }
 
@@ -222,7 +213,7 @@ async function ensureCleanedHeaders(
     cleanedHeaderRow.every((c) => !c);
 
   if (isEmpty) {
-    console.log("📌 Cleaned sheet empty — adding headers");
+    console.log("Cleaned sheet empty, adding headers");
     await appendToSheet({
       spreadsheetId: cleanedSheetId,
       range: `${tabName}!A1`,

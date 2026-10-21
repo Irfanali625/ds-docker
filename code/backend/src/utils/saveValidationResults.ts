@@ -1,14 +1,16 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { uploadFileToSeaweedFS } from "../lib/seaweedfs";
 import { appendToSheet } from "../lib/googleSheets";
+import { PhoneValidationResult } from "../types/phoneValidation";
+
+export type PhoneType = "B2B" | "B2C";
 
 interface SaveValidationParams {
   companyAbbr?: string;
-  phoneType: string;
-  userId?: number;
-  type: "single" | "bulk" | "csv";
-  results: any[];
+  phoneType: PhoneType;
+  results: PhoneValidationResult[];
 }
 
 interface SaveValidationResult {
@@ -18,6 +20,9 @@ interface SaveValidationResult {
   seaweedfsError?: string;
 }
 
+// Local copy of every results file; matches the ./code/backend/uploads volume in docker-compose.
+export const LOCAL_UPLOADS_DIR = path.join(process.cwd(), "uploads");
+
 export const SHEET_MAP: Record<string, string> = {
   B2B_VALID: "1JTpQ9Z2seYQya6QPHaR5nQxTn75doFQj3CQ5NqtQEMg",
   B2B_INVALID: "1DNg5h2GH8UMlFotASFpbzRIrQ0NuoagIix-I57qdfCw",
@@ -25,68 +30,86 @@ export const SHEET_MAP: Record<string, string> = {
   B2C_INVALID: "1mbw4KQ2Y3T6rpSqZHtptaMKJZV6HmT5fr2OZykw_qok",
 };
 
-function getSpreadsheetId(phoneType: string, isValid: boolean | "ALL") {
-  phoneType = phoneType.toUpperCase();
+const SHEET_RANGE = "Sheet1!A:H";
+const TIME_ZONE = "America/New_York";
 
-  if (isValid === true) return SHEET_MAP[`${phoneType}_VALID`];
-  if (isValid === false) return SHEET_MAP[`${phoneType}_INVALID`];
-  return SHEET_MAP[`${phoneType}_MASTER`];
+function formatTimestamp(iso?: string): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-US", { timeZone: TIME_ZONE });
 }
 
-async function storeToGoogleSheets(phoneType: string, results: any[]) {
-  const validRows = [];
-  const invalidRows = [];
-  const masterRows = [];
+function statusLabel(r: PhoneValidationResult): string {
+  if (r.isValid) return "Yes";
+  return r.status === "UNKNOWN" ? "Unknown" : "No";
+}
+
+function toRow(r: PhoneValidationResult): string[] {
+  return [
+    r.phoneNumber,
+    statusLabel(r),
+    r.isReachable ? "Yes" : "No",
+    r.countryCode || "",
+    r.formattedNumber || "",
+    r.nationalFormat || "",
+    r.isValid ? r.formattedNumber || "" : "",
+    formatTimestamp(r.validatedAt),
+  ];
+}
+
+function escapeCsv(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+async function appendIfConfigured(key: string, values: string[][]) {
+  const spreadsheetId = SHEET_MAP[key];
+  if (!spreadsheetId || !values.length) return;
+  await appendToSheet({ spreadsheetId, range: SHEET_RANGE, values });
+}
+
+async function storeToGoogleSheets(
+  phoneType: PhoneType,
+  results: PhoneValidationResult[]
+) {
+  const valid: string[][] = [];
+  const invalid: string[][] = [];
+  const master: string[][] = [];
 
   for (const r of results) {
-    const row = [
-      r.phoneNumber,
-      r.isValid ? "Yes" : "No",
-      r.isReachable ? "Yes" : "No",
-      r.countryCode || "",
-      r.formattedNumber || "",
-      r.nationalFormat || "",
-      r.isValid ? r.cleanedNumber || r.formattedNumber || "" : "",
-      new Date(r.validatedAt).toLocaleString("en-US", {
-        timeZone: "America/New_York",
-      }),
-    ];
-
-    // Split into valid/invalid
-    if (r.isValid) validRows.push(row);
-    else invalidRows.push(row);
-
-    // Always push to master
-    masterRows.push(row);
+    const row = toRow(r);
+    master.push(row);
+    if (r.isValid) valid.push(row);
+    // Numbers we could not check are not known to be invalid, keep them out of that sheet.
+    else if (r.status !== "UNKNOWN") invalid.push(row);
   }
 
-  // Get Spreadsheet IDs
-  const VALID_SHEET = getSpreadsheetId(phoneType, true);
-  const INVALID_SHEET = getSpreadsheetId(phoneType, false);
-  const MASTER_SHEET = getSpreadsheetId(phoneType, "ALL");
+  await appendIfConfigured(`${phoneType}_VALID`, valid);
+  await appendIfConfigured(`${phoneType}_INVALID`, invalid);
+  await appendIfConfigured(`${phoneType}_MASTER`, master);
+}
 
-  // Push to sheets
-  if (validRows.length) {
-    await appendToSheet({
-      spreadsheetId: VALID_SHEET,
-      range: "Sheet1!A:H",
-      values: validRows,
-    });
-  }
+function buildFileName(companyAbbr: string): { fileName: string; year: string; month: string } {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(new Date())
+      .map((p) => [p.type, p.value])
+  );
 
-  if (invalidRows.length) {
-    await appendToSheet({
-      spreadsheetId: INVALID_SHEET,
-      range: "Sheet1!A:H",
-      values: invalidRows,
-    });
-  }
+  // Random suffix keeps two runs in the same minute from overwriting each other
+  // and makes object keys impossible to guess.
+  const suffix = crypto.randomBytes(4).toString("hex");
+  const fileName = `${companyAbbr}${parts.day}${parts.month}${parts.year.slice(-2)}${parts.hour}${parts.minute}-${suffix}.csv`;
 
-  await appendToSheet({
-    spreadsheetId: MASTER_SHEET,
-    range: "Sheet1!A:H",
-    values: masterRows,
-  });
+  return { fileName, year: parts.year, month: parts.month };
 }
 
 export async function saveValidationResults({
@@ -94,31 +117,10 @@ export async function saveValidationResults({
   phoneType,
   results,
 }: SaveValidationParams): Promise<SaveValidationResult> {
-  if (!results || !results.length)
-    throw new Error("No validation results provided");
+  if (!results?.length) throw new Error("No validation results provided");
 
-  const now = new Date();
-  const est = new Date(
-    now.toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
-  const day = String(est.getDate()).padStart(2, "0");
-  const month = String(est.getMonth() + 1).padStart(2, "0");
-  const yearShort = String(est.getFullYear()).slice(-2);
-  const hours = String(est.getHours()).padStart(2, "0");
-  const minutes = String(est.getMinutes()).padStart(2, "0");
-
-  const fileName = `${companyAbbr}${day}${month}${yearShort}${hours}${minutes}.csv`;
-  const yearFull = est.getFullYear().toString();
-  const dir = path.join(
-    process.cwd(),
-    "public",
-    "uploads",
-    "csvs",
-    yearFull,
-    month
-  );
-
-  fs.mkdirSync(dir, { recursive: true });
+  const { fileName, year, month } = buildFileName(companyAbbr);
+  const publicPath = `csvs/${year}/${month}/${fileName}`;
 
   const headers = [
     phoneType,
@@ -130,56 +132,37 @@ export async function saveValidationResults({
     "Cleaned",
     "Validated At",
   ];
-  const rows = results.map((r) => [
-    r.phoneNumber,
-    r.isValid ? "Yes" : "No",
-    r.isReachable ? "Yes" : "No",
-    r.countryCode || "",
-    r.formattedNumber || "",
-    r.nationalFormat || "",
-    r.isValid ? (r.cleanedNumber || r.formattedNumber || "") : "",
-    new Date(r.validatedAt).toLocaleString("en-US", {
-      timeZone: "America/New_York",
-    }),
-  ]);
+  const csvContent = [headers, ...results.map(toRow)]
+    .map((row) => row.map(escapeCsv).join(","))
+    .join("\n");
 
   try {
     await storeToGoogleSheets(phoneType, results);
-    console.log("✔ Stored into relevant Google Sheets");
   } catch (error) {
-    console.error("❌ Failed to store Google Sheets", error);
+    console.error("Failed to store results in Google Sheets:", error);
   }
 
-  const csvContent = [headers, ...rows].map((r) => r.join(",")).join("\n");
-
-  const filePath = path.join(dir, fileName);
-  fs.writeFileSync(filePath, csvContent, "utf8");
-
-  const csvBuffer = Buffer.from(csvContent, "utf8");
-  const publicPath = `csvs/${yearFull}/${month}/${fileName}`;
+  const localPath = path.join(LOCAL_UPLOADS_DIR, publicPath);
+  try {
+    fs.mkdirSync(path.dirname(localPath), { recursive: true });
+    fs.writeFileSync(localPath, csvContent, "utf8");
+  } catch (error) {
+    console.error("Failed to write local results file:", error);
+  }
 
   let seaweedfsUploaded = false;
-  let seaweedfsError: Error | null = null;
+  let seaweedfsError: string | undefined;
 
   try {
-    await uploadFileToSeaweedFS(publicPath, csvBuffer);
+    await uploadFileToSeaweedFS(publicPath, Buffer.from(csvContent, "utf8"));
     seaweedfsUploaded = true;
   } catch (error) {
-    seaweedfsError = error instanceof Error ? error : new Error(String(error));
-    console.error(
-      "Warning: Failed to upload file to SeaweedFS (validation will continue):",
-      {
-        error: seaweedfsError.message,
-        filePath: publicPath,
-        timestamp: new Date().toISOString(),
-      }
-    );
+    seaweedfsError = error instanceof Error ? error.message : String(error);
+    console.error("Failed to upload results to SeaweedFS:", {
+      error: seaweedfsError,
+      filePath: publicPath,
+    });
   }
 
-  return {
-    fileName,
-    publicPath,
-    seaweedfsUploaded,
-    seaweedfsError: seaweedfsError?.message,
-  };
+  return { fileName, publicPath, seaweedfsUploaded, seaweedfsError };
 }
