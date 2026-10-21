@@ -63,7 +63,9 @@ services:
     build:
       context: ./code/backend
       dockerfile: Dockerfile
+      target: builder  # has dev dependencies; source is mounted below for live reload
     container_name: vnc-backend
+    command: npx ts-node-dev --respawn --transpile-only --poll src/index.ts
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -74,6 +76,7 @@ services:
       MONGODB_URI: mongodb://${MONGO_DB_USERNAME}:${MONGO_DB_PASSWORD}@mongo:27017/data-scraping?authSource=admin
       SEAWEEDFS_ENDPOINT: seaweedfs
     volumes:
+      - ./code/backend/src:/app/src
       - ./code/backend/uploads:/app/uploads
       - ./code/backend/src/services/json:/app/src/services/json:ro
     depends_on:
@@ -86,10 +89,12 @@ services:
     build:
       context: ./code/frontend
       dockerfile: Dockerfile
+      target: builder  # has dev dependencies; source is mounted below for live reload
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_MINIO_BUCKET: ${NEXT_PUBLIC_MINIO_BUCKET}
     container_name: vnc-frontend
+    command: npx next dev -p 3000
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -97,6 +102,12 @@ services:
       - ./.env
     environment:
       PORT: 3000  # .env PORT is the backend's
+      WATCHPACK_POLLING: "true"  # file events from macOS bind mounts are unreliable
+    volumes:
+      - ./code/frontend:/app
+      # keep the image's node_modules and build cache instead of the host's
+      - /app/node_modules
+      - /app/.next
     depends_on:
       - backend
     networks:
