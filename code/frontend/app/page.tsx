@@ -1,6 +1,6 @@
-import { redirect } from 'next/navigation';
+import { cookies } from "next/headers";
+import { LandingView } from "@/views/landing/LandingView";
 
-// middleware.ts sends signed-in users to /dashboard; this covers everyone else.
 export default function Home() {
-  redirect('/login');
+  return <LandingView signedIn={!!cookies().get("auth_token")?.value} />;
 }
