@@ -5,9 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   IconChevronDown,
+  IconChevronRight,
   IconHistory,
   IconLogout,
   IconPhoneCheck,
+  IconPlus,
+  IconSelector,
   IconSettings,
 } from "@tabler/icons-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,10 +30,11 @@ function initials(name?: string) {
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }
 
-function UserMenu() {
+function UserMenu({ variant }: { variant: "sidebar" | "header" }) {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const inSidebar = variant === "sidebar";
 
   useEffect(() => {
     if (!open) return;
@@ -53,23 +57,37 @@ function UserMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        className={cn(
+          "flex items-center gap-2.5 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+          inSidebar ? "w-full p-2 text-left hover:bg-white hover:shadow-card hover:ring-1 hover:ring-slate-200" : "py-1 pl-1 pr-2 hover:bg-slate-100",
+          inSidebar && open && "bg-white shadow-card ring-1 ring-slate-200"
+        )}
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-800">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-800">
           {initials(user?.name)}
         </span>
-        <span className="hidden max-w-[160px] truncate text-sm font-medium text-slate-700 sm:block">
-          {user?.name}
-        </span>
-        <IconChevronDown
-          className={cn("h-4 w-4 text-slate-400 transition-transform", open && "rotate-180")}
-        />
+        {inSidebar ? (
+          <>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-slate-900">{user?.name}</span>
+              <span className="block truncate text-xs text-slate-500">{user?.email}</span>
+            </span>
+            <IconSelector className="h-4 w-4 shrink-0 text-slate-400" />
+          </>
+        ) : (
+          <IconChevronDown
+            className={cn("h-4 w-4 text-slate-400 transition-transform", open && "rotate-180")}
+          />
+        )}
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-40 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-overlay"
+          className={cn(
+            "absolute z-40 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-overlay",
+            inSidebar ? "inset-x-0 bottom-full mb-2" : "right-0 top-full mt-2 w-64"
+          )}
         >
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="truncate text-sm font-medium text-slate-900">{user?.name}</p>
@@ -115,43 +133,55 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === href : !!pathname?.startsWith(href);
+  const current = NAV_ITEMS.find((item) => isActive(item.href));
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-4 sm:px-6">
-          <Link href="/dashboard" className="shrink-0">
+    <div className="min-h-screen bg-white lg:pl-64">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-slate-50/70 lg:flex">
+        <div className="flex h-16 shrink-0 items-center border-b border-slate-200 px-5">
+          <Link href="/dashboard">
             <Logo />
           </Link>
-
-          <nav className="hidden h-full items-center gap-1 md:flex" aria-label="Main">
-            {NAV_ITEMS.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                aria-current={isActive(href) ? "page" : undefined}
-                className={cn(
-                  "relative flex h-full items-center px-3 text-sm font-medium transition-colors",
-                  isActive(href) ? "text-slate-900" : "text-slate-500 hover:text-slate-900"
-                )}
-              >
-                {label}
-                {isActive(href) && (
-                  <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-brand-600" />
-                )}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="ml-auto">
-            <UserMenu />
-          </div>
         </div>
 
-        <nav
-          className="flex gap-1 overflow-x-auto border-t border-slate-100 px-2 md:hidden"
-          aria-label="Main"
-        >
+        <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Main">
+          <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            Workspace
+          </p>
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={isActive(href) ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
+                isActive(href)
+                  ? "bg-white text-slate-900 shadow-card ring-1 ring-slate-200"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              )}
+            >
+              <Icon
+                className={cn("h-[18px] w-[18px]", isActive(href) ? "text-brand-600" : "text-slate-400")}
+                stroke={1.75}
+              />
+              {label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="border-t border-slate-200 p-3">
+          <UserMenu variant="sidebar" />
+        </div>
+      </aside>
+
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur lg:hidden">
+        <div className="flex h-14 items-center justify-between px-4 sm:px-6">
+          <Link href="/dashboard">
+            <Logo />
+          </Link>
+          <UserMenu variant="header" />
+        </div>
+        <nav className="flex gap-1 overflow-x-auto px-2 sm:px-4" aria-label="Main">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
@@ -171,7 +201,26 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">{children}</main>
+      <div className="sticky top-0 z-20 hidden h-16 border-b border-slate-200 bg-white/90 backdrop-blur lg:block">
+        <div className="flex h-full items-center justify-between px-10">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
+            <span className="text-slate-500">Workspace</span>
+            <IconChevronRight className="h-3.5 w-3.5 text-slate-300" stroke={2} />
+            <span className="font-medium text-slate-900">{current?.label}</span>
+          </nav>
+          {pathname !== "/dashboard" && (
+            <Link
+              href="/dashboard"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-sm font-medium text-white shadow-sm hover:bg-brand-700"
+            >
+              <IconPlus className="h-4 w-4" stroke={2} />
+              New validation
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <main className="px-4 py-8 sm:px-6 lg:px-10 lg:py-10">{children}</main>
     </div>
   );
 }

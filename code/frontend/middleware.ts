@@ -14,12 +14,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (hasToken && (pathname === '/' || AUTH_PAGES.includes(pathname))) {
+  if (hasToken && AUTH_PAGES.includes(pathname)) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  if (!hasToken && pathname === '/') {
-    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   return NextResponse.next();
