@@ -24,41 +24,36 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: str
   );
 }
 
-function SingleResult({ result }: { result: PhoneValidationResult }) {
-  const details: Array<[string, string | undefined]> = [
-    ["E.164 format", result.formattedNumber],
-    ["National format", result.nationalFormat],
-    ["Country", result.countryCode],
-    ["Reachable", result.isValid ? (result.isReachable ? "Yes" : "No") : undefined],
-    ["Checked", formatDateTime(result.validatedAt)],
+function Breakdown({ run }: { run: ValidationRun }) {
+  if (!run.total) return null;
+  const segments = [
+    { label: "Valid", value: run.valid, bar: "bg-emerald-500" },
+    { label: "Invalid", value: run.invalid, bar: "bg-red-500" },
+    { label: "Not checked", value: run.unknown, bar: "bg-amber-400" },
   ];
+  const pct = (n: number) => (n / run.total) * 100;
 
   return (
-    <div className="px-5 py-5 sm:px-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="font-mono text-xl font-medium text-slate-900">
-          {result.formattedNumber || `+${result.phoneNumber}`}
-        </p>
-        <StatusBadge result={result} />
+    <div className="border-b border-slate-200 px-5 py-4 sm:px-6">
+      <div className="flex h-2 overflow-hidden rounded-full bg-slate-100">
+        {segments.map((s) =>
+          s.value ? <span key={s.label} className={s.bar} style={{ width: `${pct(s.value)}%` }} /> : null
+        )}
       </div>
-      {statusOf(result) === "UNKNOWN" && (
-        <p className="mt-2 text-sm text-amber-700">
-          The lookup could not be completed{result.error ? ` (${result.error.toLowerCase()})` : ""}. Try again in a moment.
-        </p>
-      )}
-      <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-5">
-        {details.map(([label, value]) => (
-          <div key={label}>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
-            <dd className="mt-1 text-sm text-slate-900">{value || <span className="text-slate-400">Not available</span>}</dd>
-          </div>
+      <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-slate-500">
+        {segments.map((s) => (
+          <li key={s.label} className="flex items-center gap-1.5">
+            <span className={cn("h-2 w-2 rounded-full", s.bar)} />
+            {s.label}
+            <span className="font-medium tabular-nums text-slate-700">{Math.round(pct(s.value))}%</span>
+          </li>
         ))}
-      </dl>
+      </ul>
     </div>
   );
 }
 
-function ResultsTable({ results }: { results: PhoneValidationResult[] }) {
+function ResultsTable({ results, showFilter }: { results: PhoneValidationResult[]; showFilter: boolean }) {
   const [filter, setFilter] = useState<Filter>("ALL");
 
   const filtered = useMemo(
@@ -69,25 +64,27 @@ function ResultsTable({ results }: { results: PhoneValidationResult[] }) {
 
   return (
     <div>
-      <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <SegmentedControl
-          size="sm"
-          ariaLabel="Filter results"
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: "ALL", label: "All" },
-            { value: "VALID", label: "Valid" },
-            { value: "INVALID", label: "Invalid" },
-            { value: "UNKNOWN", label: "Not checked" },
-          ]}
-        />
-        {filtered.length > PREVIEW_LIMIT && (
-          <p className="text-xs text-slate-500">
-            Showing the first {PREVIEW_LIMIT} of {filtered.length.toLocaleString()}. Download the CSV for the full list.
-          </p>
-        )}
-      </div>
+      {showFilter && (
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <SegmentedControl
+            size="sm"
+            ariaLabel="Filter results"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "ALL", label: "All" },
+              { value: "VALID", label: "Valid" },
+              { value: "INVALID", label: "Invalid" },
+              { value: "UNKNOWN", label: "Not checked" },
+            ]}
+          />
+          {filtered.length > PREVIEW_LIMIT && (
+            <p className="text-xs text-slate-500">
+              Showing the first {PREVIEW_LIMIT} of {filtered.length.toLocaleString()}. Download the CSV for the full list.
+            </p>
+          )}
+        </div>
+      )}
 
       {visible.length === 0 ? (
         <p className="px-6 py-10 text-center text-sm text-slate-500">No numbers match this filter.</p>
@@ -162,19 +159,20 @@ export function ResultsPanel({ run }: { run: ValidationRun }) {
         </div>
       )}
 
-      {isSingle && run.results[0] ? (
-        <SingleResult result={run.results[0]} />
-      ) : (
-        <>
-          <dl className="grid grid-cols-2 divide-slate-200 border-b border-slate-200 sm:grid-cols-4 sm:divide-x">
-            <Stat label="Total" value={run.total} />
-            <Stat label="Valid" value={run.valid} tone="text-emerald-600" />
-            <Stat label="Invalid" value={run.invalid} tone="text-red-600" />
-            <Stat label="Not checked" value={run.unknown} tone={run.unknown ? "text-amber-600" : undefined} />
-          </dl>
-          <ResultsTable results={run.results} />
-        </>
+      <dl className="grid grid-cols-2 divide-slate-200 border-b border-slate-200 sm:grid-cols-4 sm:divide-x">
+        <Stat label="Total" value={run.total} />
+        <Stat label="Valid" value={run.valid} tone="text-emerald-600" />
+        <Stat label="Invalid" value={run.invalid} tone="text-red-600" />
+        <Stat label="Not checked" value={run.unknown} tone={run.unknown ? "text-amber-600" : undefined} />
+      </dl>
+      <Breakdown run={run} />
+      {run.unknown > 0 && isSingle && (
+        <p className="border-b border-slate-200 px-5 py-3 text-sm text-amber-700 sm:px-6">
+          The lookup could not be completed
+          {run.results[0]?.error ? ` (${run.results[0].error.toLowerCase()})` : ""}. Try again in a moment.
+        </p>
       )}
+      <ResultsTable results={run.results} showFilter={!isSingle} />
     </Card>
   );
 }

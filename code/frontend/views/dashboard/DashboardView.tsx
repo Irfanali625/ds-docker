@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { IconFileUpload, IconList, IconPhone } from "@tabler/icons-react";
+import { IconChartBar, IconFileUpload, IconList, IconPhone } from "@tabler/icons-react";
 import { validationApi, ApiError } from "@/lib/api";
 import { PhoneType, ValidationMode, ValidationRun } from "@/types/phoneValidation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
@@ -20,6 +21,38 @@ const MODES: { value: ValidationMode; label: string; icon: typeof IconPhone }[] 
   { value: "bulk", label: "Paste a list", icon: IconList },
   { value: "csv", label: "Upload CSV", icon: IconFileUpload },
 ];
+
+const STATUS_GUIDE: { tone: "success" | "danger" | "warning"; label: string; body: string }[] = [
+  { tone: "success", label: "Valid", body: "A real number the carrier recognises." },
+  { tone: "danger", label: "Invalid", body: "Not an assigned or correctly formed number." },
+  { tone: "warning", label: "Not checked", body: "The lookup could not finish. Try again later." },
+];
+
+function ResultsPlaceholder() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50/50">
+      <div className="flex flex-col items-center px-6 pb-8 pt-10 text-center">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-500 shadow-card ring-1 ring-slate-200">
+          <IconChartBar className="h-5 w-5" stroke={1.75} />
+        </span>
+        <h2 className="mt-4 text-sm font-semibold text-slate-900">Results will appear here</h2>
+        <p className="mt-1 max-w-sm text-sm text-slate-500">
+          Run a validation above. Each number is marked with one of these statuses.
+        </p>
+      </div>
+      <ul className="grid gap-px border-t border-slate-200 bg-slate-200 sm:grid-cols-3">
+        {STATUS_GUIDE.map((item) => (
+          <li key={item.label} className="bg-white px-5 py-4 sm:px-6">
+            <Badge tone={item.tone} dot>
+              {item.label}
+            </Badge>
+            <p className="mt-2 text-sm text-slate-600">{item.body}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export function DashboardView() {
   const [mode, setMode] = useState<ValidationMode>("single");
@@ -128,11 +161,13 @@ export function DashboardView() {
         </div>
       </Card>
 
-      {current && (
-        <div className="mt-6">
+      <div className="mt-6">
+        {current ? (
           <ResultsPanel key={current.historyId} run={current} />
-        </div>
-      )}
+        ) : (
+          <ResultsPlaceholder />
+        )}
+      </div>
 
       <UpgradeModal isOpen={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </>
